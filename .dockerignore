@@ -1,0 +1,11 @@
+.git
+.vscode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.o
+*.obj
+*.out
+build/
+dist/
