@@ -13,7 +13,12 @@ RUN apk add --no-cache \
     py3-virtualenv \
     bash \
     bash-completion \
-    git
+    git \
+    gdb \
+    lldb \
+    binutils \
+    strace \
+    valgrind
 
 # Common command aliases expected by many scripts.
 RUN ln -sf python3 /usr/bin/python && ln -sf pip3 /usr/bin/pip
