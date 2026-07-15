@@ -12,12 +12,12 @@ RUN apk add --no-cache \
     py3-pip \
     py3-virtualenv \
     bash \
-    git \
-    zsh
+    bash-completion \
+    git
 
 # Common command aliases expected by many scripts.
 RUN ln -sf python3 /usr/bin/python && ln -sf pip3 /usr/bin/pip
 
-WORKDIR /workspace
+WORKDIR /workspaces/Cpp_programing
 
-CMD ["zsh"]
+CMD ["bash"]
