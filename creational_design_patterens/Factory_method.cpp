@@ -4,6 +4,12 @@
 
 using namespace std;
 
+// when we will use the factory method pattern, we will not create the object directly, 
+// instead we will use a factory to create the object for us. The factory will decide 
+// which concrete class to instantiate based on some input or configuration. This allows
+// us to decouple the client code from the concrete classes and makes it easier to add 
+// new types of loggers in the future without modifying the client code.
+
 // ──────────────────────────────────────────────────────────────
 // PRODUCT INTERFACE
 // Defines the interface that all concrete loggers must implement.
