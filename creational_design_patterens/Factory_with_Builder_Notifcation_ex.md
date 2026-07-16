@@ -86,8 +86,15 @@ classDiagram
         +createNotification() unique_ptr~INotification~
     }
 
+    class NotificationType {
+        <<enumeration>>
+        Email
+        SMS
+        WhatsApp
+    }
+
     class NotificationService {
-        +sendNotification(NotificationFactory&) void
+        +send(NotificationType) void
     }
 
     INotification <|.. EmailNotification
@@ -106,7 +113,8 @@ classDiagram
     SMSNotificationFactory ..> SMSNotificationBuilder : uses
     WhatsAppNotificationFactory ..> WhatsAppNotificationBuilder : uses
 
-    NotificationService ..> NotificationFactory : depends on
+    NotificationService ..> NotificationFactory : creates internally
+    NotificationService ..> NotificationType : uses
 ```
 
 ---
@@ -121,8 +129,8 @@ sequenceDiagram
     participant Builder as EmailNotificationBuilder
     participant Notif as EmailNotification
 
-    Client->>Client: getFactory("email")
-    Client->>Service: sendNotification(factory)
+    Client->>Service: send(NotificationType::Email)
+    Service->>Service: switch(type) → create EmailNotificationFactory
     Service->>Factory: createNotification()
     Factory->>Builder: EmailNotificationBuilder()
     Factory->>Builder: setSenderEmailAddress(...)

@@ -90,6 +90,12 @@ using namespace std;
 // Here the factory pattern used to instantiate the diffenren type of notfication(mean create the object of the notification) and 
 // the builder pattern is used to build the object of the notification with different parameters.
 
+enum class NotificationType
+{
+    Email,
+    SMS,
+    WhatsApp
+};
 
 class INotification
 {
@@ -269,50 +275,37 @@ public:
 class NotificationService
 {
 public:
-    void sendNotification(NotificationFactory& factory)
+    void send(NotificationType type)
     {
-        std::unique_ptr<INotification> notification = factory.createNotification();
+        std::unique_ptr<NotificationFactory> factory;
+        switch (type)
+        {
+        case NotificationType::Email:
+            factory = std::make_unique<EmailNotificationFactory>();
+            break;
+        case NotificationType::SMS:
+            factory = std::make_unique<SMSNotificationFactory>();
+            break;
+        case NotificationType::WhatsApp:
+            factory = std::make_unique<WhatsAppNotificationFactory>();
+            break;
+        default:
+            throw invalid_argument("Unknown notification type");
+        }
+
+        std::unique_ptr<INotification> notification = factory->createNotification();
         notification->send();
     }
 };
 
-std::unique_ptr<NotificationFactory> getFactory(const string& type)
-{
-    if (type == "email")
-    {
-        return std::make_unique<EmailNotificationFactory>();
-    }
-    else if (type == "sms")
-    {
-        return std::make_unique<SMSNotificationFactory>();
-    }
-    else if (type == "whatsapp")
-    {
-        return std::make_unique<WhatsAppNotificationFactory>();
-    }
-    else
-    {
-        throw invalid_argument("Unknown notification type");
-    }
-}
+
 
 int main()
 {
     NotificationService service;
-    string type;
-
-    cout << "Enter notification type (email, sms, whatsapp): ";
-    cin >> type;
-
-    try
-    {
-        std::unique_ptr<NotificationFactory> factory = getFactory(type);
-        service.sendNotification(*factory);
-    }
-    catch (const invalid_argument& e)
-    {
-        cout << e.what() << endl;
-    }
+    service.send(NotificationType::Email);
+    service.send(NotificationType::SMS);
+    service.send(NotificationType::WhatsApp);
 
     return 0;
 }
