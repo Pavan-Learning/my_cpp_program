@@ -58,7 +58,7 @@ class MySQLDatabase : public IDatabase
 
 class PostgreSQLDatabase : public IDatabase
 {
-    DatabaseConfig config;
+    const DatabaseConfig config;
 public:
     PostgreSQLDatabase(const DatabaseConfig& config) : config(config) {}
     void connect() override
@@ -86,25 +86,53 @@ class PostgreSQLDatabaseBuilder
 public:
     PostgreSQLDatabaseBuilder& setHost(const string& host)
     {
-        this->host = host;
+        if(host.empty())
+        {
+            throw std::invalid_argument("Host cannot be empty");
+        }
+        else
+        {
+            this->host = host;
+        }
         return *this;
     }
 
     PostgreSQLDatabaseBuilder& setUser(const string& user)
     {
+        if(user.empty())
+        {
+            throw std::invalid_argument("User cannot be empty");
+        }
+        else
+        {
         this->user = user;
+        }
         return *this;
     }
 
     PostgreSQLDatabaseBuilder& setPassword(const string& password)
     {
+        if(password.empty())
+        {
+            throw std::invalid_argument("Password cannot be empty");
+        }
+        else
+        {
         this->password = password;
+        }
         return *this;
     }
 
     PostgreSQLDatabaseBuilder& setDatabase(const string& database)
     {
+        if(database.empty())
+        {
+            throw std::invalid_argument("Database cannot be empty");
+        }
+        else
+        {
         this->database = database;
+        }
         return *this;
     }
 
@@ -165,86 +193,11 @@ public:
     
 };
 
-// class DatabaseFactoryMap : public DatabaseFactory
-// {
-//     std::map<DatabaseType, std::function<std::unique_ptr<IDatabase>()>> factoryMap;
-// public:
-//     virtual ~DatabaseFactoryMap() = default;
-    
-//     DatabaseFactoryMap()
-//     {
-//         factoryMap[DatabaseType::MYSQL] = []() { return std::make_unique<MySQLDatabase>(); };
-//         factoryMap[DatabaseType::POSTGRESQL] = []() { return PostgreSQLDatabaseBuilder{}
-//             .setHost("localhost")
-//             .setUser("postgres_user")
-//             .setPassword("postgres_password")
-//             .setDatabase("my_database")
-//             .build(); };
-//         factoryMap[DatabaseType::SQLITE] = []() { return std::make_unique<SQLiteDatabase>(); };
-//     }
-
-//     std::unique_ptr<IDatabase> createDatabase(DatabaseType dbtype) override
-//     {
-//         auto it = factoryMap.find(dbtype);
-//         if (it != factoryMap.end())
-//         {
-//             return it->second();
-//         }
-//         throw std::invalid_argument("Invalid database type");
-//     }
-
-// };
-
-// Concrete Factories
-// class MySQLDatabaseFactory : public DatabaseFactory
-// {
-//     public:
-//     std::unique_ptr<IDatabase> createDatabase() override
-//     {
-//         return std::make_unique<MySQLDatabase>();
-//     }
-// };
-
-// class PostgreSQLDatabaseFactory : public DatabaseFactory
-// {
-    
-// public:
-//     std::unique_ptr<IDatabase> createDatabase() override
-//     {
-//         auto db = PostgreSQLDatabase::PostgreSQLDatabaseBuilder()
-//             .setHost("localhost")
-//             .setUser("postgres_user")
-//             .setPassword("postgres_password")
-//             .setDatabase("my_database")
-//             .build();
-//         return std::unique_ptr<IDatabase>(std::move(db));
-//     }
-// };
-
-// class SQLiteDatabaseFactory : public DatabaseFactory
-// {
-// public:
-//     std::unique_ptr<IDatabase> createDatabase() override    
-//     {
-//         return std::make_unique<SQLiteDatabase>();
-//     }
-// };
-
-// class DatabaseServiceFactory
-// {
-// public:
-//     static std::unique_ptr<DatabaseFactory> createFactory(DatabaseType dbtype)
-//     {
-//         DatabaseFactory factory;
-//         return std::make_unique<DatabaseFactory>(factory);
-//     }
-// };
-
 class DatabaseService 
 {
 
     public:
-    void executeQuery(DatabaseType& dbtype, const std::string& query)
+    void executeQuery(const DatabaseType dbtype, const std::string& query)
     {
         auto database = DatabaseFactory::createDatabase(dbtype);
         database->connect();
