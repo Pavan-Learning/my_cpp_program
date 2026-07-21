@@ -5,6 +5,8 @@
 using std::mutex;
 using std::once_flag;
 
+// please refer this page to understand the singleton design pattern in C++: https://medium.com/@lokeshbihani99/singleton-pattern-in-c-8bbf1e53c023
+
 // Singleton class implementation
 // Singleton class ensures that only one instance of the class is created and provides a global point of access to that instance.
 // The Singleton class is implemented using a private static pointer to the instance and a public static method to get the instance
