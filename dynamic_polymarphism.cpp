@@ -40,9 +40,12 @@ int main() {
 
     // base b = d1; // we cannot create an object of base class because it is abstract, but we can create a reference or pointer to base class and assign it to derived class object.
 
-    // derived2 de = d1; // this is also give compile time error because we cannot assign derived class object to base class object.
-                        // this is beacuse derived1 does not know about derived2 class and it will not be able to assign derived1 object to derived2 object.
-
+    //──────────────────────────────────────────────────────────
+    // WHY derived2 de = d1 fails:
+    // - derived1 doesn't know about derived2's extra members
+    // - e.g. Person(name,age) assigned to Student(name,age,rollno)
+    //   → Person doesn't have rollno, so it can't fill Student
+    //──────────────────────────────────────────────────────────
     derived1 de = d2; // this will not give compile time error due assigning derived obj to base obj but it might give object slicing.
 
     de.show(); // this will show only derived1 show funtion beacuse d2 part is sliced off and only derived1 part is assigned to de.
