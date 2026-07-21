@@ -38,33 +38,59 @@ int main() {
     base& obj2 = d2;
     obj2.display();
 
-    // base b = d1; // we cannot create an object of base class because it is abstract, but we can create a reference or pointer to base class and assign it to derived class object.
+    //──────────────────────────────────────────────────────────
+    // NOTE: base b = d1;
+    // REASON: base is abstract (has pure virtual function)
+    //         → cannot create object, only pointer/reference
+    //──────────────────────────────────────────────────────────
 
     //──────────────────────────────────────────────────────────
-    // WHY derived2 de = d1 fails:
-    // - derived1 doesn't know about derived2's extra members
-    // - e.g. Person(name,age) assigned to Student(name,age,rollno)
-    //   → Person doesn't have rollno, so it can't fill Student
+    // NOTE: derived2 de = d1; → COMPILE ERROR
+    // REASON: derived1 doesn't know about derived2's extra members
+    // EXAMPLE: Person(name,age) → Student(name,age,rollno)
+    //          Person can't fill Student because rollno is unknown
     //──────────────────────────────────────────────────────────
-    derived1 de = d2; // this will not give compile time error due assigning derived obj to base obj but it might give object slicing.
 
-    de.show(); // this will show only derived1 show funtion beacuse d2 part is sliced off and only derived1 part is assigned to de.
+    //──────────────────────────────────────────────────────────
+    // NOTE: derived1 de = d2; → OBJECT SLICING
+    // REASON: d2 is copied into a derived1 variable
+    //         → derived2 part is sliced off, only derived1 remains
+    //──────────────────────────────────────────────────────────
+    derived1 de = d2;
 
+    de.show(); // RESULT: calls derived1::show() because derived2 part is sliced off
+
+    //──────────────────────────────────────────────────────────
+    // NOTE: base pointer to derived1 object
+    // REASON: display() is virtual → resolved at runtime via vptr
+    // RESULT: calls derived1::display()
+    //──────────────────────────────────────────────────────────
     derived1* ptr1 = new derived1();
     base* basePtr1 = ptr1;
     basePtr1->display();
     delete basePtr1;
 
-    derived1* derivedPtr2 =  new derived2();; // upcasting
-    derivedPtr2->display(); // this will call derived2 display function because  here we have vptr of derived2 class and it will call derived2 display function.
-    std::cout<<"*******"<<std::endl;
-    derivedPtr2->show(); // here we are derived1 is base class of derived2 and it have show function of derived1 class so it will call derived1 show function.
-                        // due to it is non virtual fucntion and in complie time, complie decides like I have derived1 pointer and derived1 class have show function so I will call derived1 show function.
+    //──────────────────────────────────────────────────────────
+    // NOTE: derived1 pointer to derived2 object (upcasting)
+    // display() → virtual → resolved at runtime → calls derived2::display()
+    // show()    → non-virtual → resolved at compile time by pointer type
+    //            → compiler sees derived1* → calls derived1::show()
+    //──────────────────────────────────────────────────────────
+    derived1* derivedPtr2 = new derived2();
+    derivedPtr2->display(); // RESULT: derived2::display() — virtual, uses vptr
+    std::cout << "*******" << std::endl;
+    derivedPtr2->show();    // RESULT: derived1::show() — non-virtual, uses pointer type
     delete derivedPtr2;
 
-    base* basePtr2 = new derived2(); // upcasting
-    basePtr2->display(); // this will call derived2 display function because  here we have vptr of derived2 class and it will call derived2 display function.
-    // basePtr2->show(); // this will give compile time error because base class doesn't have show function so it doesn't in base class vtable and it will not be able to call derived2 show function.
+    //──────────────────────────────────────────────────────────
+    // NOTE: base pointer to derived2 object (upcasting)
+    // display() → virtual → calls derived2::display() via vptr
+    // show()    → NOT in base class → COMPILE ERROR if called
+    // REASON: compiler only sees base* → base has no show()
+    //──────────────────────────────────────────────────────────
+    base* basePtr2 = new derived2();
+    basePtr2->display(); // RESULT: derived2::display() — virtual, uses vptr
+    // basePtr2->show(); // ERROR: base class has no show() in its interface
     delete basePtr2;
 
     return 0;
