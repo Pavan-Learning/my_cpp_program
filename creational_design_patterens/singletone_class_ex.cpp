@@ -1,6 +1,7 @@
 #include <iostream>
 #include <mutex>
 #include <thread>
+#include <functional>
 
 using std::mutex;
 using std::once_flag;
@@ -195,6 +196,16 @@ public:
     // Now the dependency is visible in the function signature.
 };
 
+class SingletoneTester {
+public:
+    template <typename T>
+    bool is_singleton(std::function<T*()> factory) {
+        T* instance1 = factory();
+        T* instance2 = factory();
+        return instance1 == instance2;
+    }
+};
+
 
 int main()
 {
@@ -229,6 +240,13 @@ int main()
     std::cout << "\n--- Drawback 3: Hidden Dependencies ---" << std::endl;
     OrderProcessor order(101);
     order.processOrder(); // secretly uses Logger singleton inside
+
+    // --- Singleton Tester Demo ---
+    std::cout << "\n--- Singleton Tester Demo ---" << std::endl;
+    SingletoneTester tester;
+    bool isSingleton = tester.is_singleton<MeyersSingleton>([]() { return &MeyersSingleton::getInstance(); });
+    std::cout << "MeyersSingleton is a singleton: " << (isSingleton ? "true" : "false") << std::endl;
+
 
     return 0;
 }
