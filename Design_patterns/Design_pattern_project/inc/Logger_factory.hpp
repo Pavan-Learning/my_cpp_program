@@ -3,19 +3,19 @@
 #define LOGGER_FACTORY_HPP
 
 #include "logger_interface.hpp"
-#include "Adapter_logger.hpp"
-#include "Adapter_logger.hpp"
+#include "Logger_adapter.hpp"
+#include "legacy_logger.hpp"
 
 class LoggerFactory {
 public:
-    virtual std::unique_ptr<LoggerInterface> createLogger() = 0; // Pure virtual function to create a logger instance
+    virtual std::unique_ptr<ILogger> createLogger() = 0; // Pure virtual function to create a logger instance
     virtual ~LoggerFactory() = default; // Virtual destructor for proper cleanup of derived classes
 };
 
-class AdapterLoggerFactory : public LoggerFactory {
+class LoggerAdapterFactory : public LoggerFactory {
 public:
-    std::unique_ptr<LoggerInterface> createLogger() override {
-        return std::make_unique<AdapterLogger>(); // Create and return an instance of AdapterLogger
+    std::unique_ptr<ILogger> createLogger() override {
+        return std::make_unique<LoggerAdapter>(); // Create and return an instance of AdapterLogger
     }
 };
         

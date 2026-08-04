@@ -2,13 +2,12 @@
 #ifndef LOGGER_INTERFACE_HPP
 #define LOGGER_INTERFACE_HPP
 
-#include <iostream>
 #include <string>
 #include "log_levels.hpp"
 
-class LoggerInterface {
+class ILogger {
 public:
-    virtual ~LoggerInterface() = default;
+    virtual ~ILogger() = default;
     virtual void log(LogLevel level, const std::string& message) = 0; // Pure virtual function
     virtual void flush() = 0; // Pure virtual function to flush the log output
     virtual void shutdown() = 0; // Pure virtual function to perform any necessary cleanup before shutting down the logger
