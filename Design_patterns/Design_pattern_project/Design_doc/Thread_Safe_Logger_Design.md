@@ -175,9 +175,10 @@ Design_pattern_project/
     └── legacy_logger.cpp       # LegacyLogger implementation
 ```
 
-## Build
+## Build & Run
 
 ```bash
 cd Design_patterns/Design_pattern_project
 cmake -B build && cmake --build build
+./build/threading
 ```
