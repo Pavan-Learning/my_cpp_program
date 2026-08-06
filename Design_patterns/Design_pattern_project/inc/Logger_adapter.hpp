@@ -11,6 +11,8 @@
 
 class LoggerAdapter : public ILogger {
     private:
+    std::condition_variable cv;
+    std::mutex mtx;
     ThreadSafeQueue logQueue; // Thread-safe queue to hold log messages
     LoggerThread loggingThread; // Thread for processing log messages
 public:

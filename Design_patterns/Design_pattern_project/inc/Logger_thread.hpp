@@ -9,6 +9,9 @@
 class LoggerThread {
     private:
         std::thread workerThread;
+        std::condition_variable cv;
+        bool workerthreadbusy = false;
+        std::mutex mtx;
         ThreadSafeQueue& logQueue; // Reference to the shared log queue
         LegacyLogger& legacyLogger; // Reference to the legacy logger instance
     public:
@@ -18,6 +21,8 @@ class LoggerThread {
         void start();
 
         void stop();
+
+        void waitToFinishFlush();
 
     private:
         void processLogs();

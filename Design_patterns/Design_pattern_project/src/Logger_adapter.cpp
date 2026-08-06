@@ -15,8 +15,10 @@ void LoggerAdapter::log(LogLevel log_level, const std::string& message) {
 }
 
 void LoggerAdapter::flush() {
-    // this is not complete implementation, but for demonstration purposes, we can just flush the console output
-    std::cout << std::flush; // Flush the console output
+    std::cout << "Debug : ********** Flushing logs *****" << std::endl;
+    loggingThread.waitToFinishFlush(); // Wait for the logging thread to finish processing logs
+    
+    std::cout << "Debug : ********** Flushing logs completed *****" << std::endl;
 }
 
 void LoggerAdapter::shutdown() {
