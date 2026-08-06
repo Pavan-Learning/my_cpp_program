@@ -59,6 +59,7 @@ classDiagram
     class LoggerAdapter {
         -ThreadSafeQueue logQueue
         -LoggerThread loggingThread
+        -bool stopped
         +LoggerAdapter()
         +~LoggerAdapter()
         +log(LogLevel, string)
@@ -69,7 +70,8 @@ classDiagram
     class ThreadSafeQueue {
         -queue~pair~string,LogLevel~~ logQueue
         -mutable mutex mtx
-        -condition_variable cv
+        -condition_variable cvNotEmpty
+        -condition_variable cvNotFull
         -bool shutdown
         +push(string, LogLevel)
         +pop() optional~pair~string,LogLevel~~
@@ -80,9 +82,10 @@ classDiagram
 
     class LoggerThread {
         -thread workerThread
-        -condition_variable cv
-        -bool workerthreadbusy
+        -condition_variable cvFlush
         -mutex mtx
+        -bool busy
+        -bool stopped
         -ThreadSafeQueue& logQueue
         -LegacyLogger& legacyLogger
         +LoggerThread(ThreadSafeQueue&, LegacyLogger&)
@@ -157,9 +160,9 @@ sequenceDiagram
     Note right of Q: if queue full (≥100):<br/>producer blocks until space
     Q-->>LT: cv.notify_one() [wake consumer]
     LT->>Q: pop() → {msg, INFO}
-    Note right of LT: sets workerthreadbusy = true
+    Note right of LT: sets busy = true
     LT->>LL: writeLog(INFO, "msg")
-    Note right of LT: sets workerthreadbusy = false
+    Note right of LT: sets busy = false
     end
 ```
 
@@ -176,9 +179,9 @@ sequenceDiagram
     Note right of C: FLUSH (blocks caller until queue drained)
     C->>LA: flush()
     LA->>LT: waitToFinishFlush()
-    Note right of LT: cv.wait() until:<br/>queue is empty AND<br/>worker is not busy
+    Note right of LT: cvFlush.wait() until:<br/>queue is empty AND<br/>worker is not busy
     LT->>LT: worker finishes processing
-    LT-->>LT: cv.notify_all()
+    LT-->>LT: cvFlush.notify_all()
     LT-->>LA: return
     LA-->>C: flush complete
     end
@@ -199,26 +202,29 @@ sequenceDiagram
 
 | Component | Mechanism | Details |
 |-----------|-----------|---------|
-| `ThreadSafeQueue` | `std::mutex` + `std::condition_variable` | Guards all queue operations; `cv.wait()` blocks consumer when queue is empty |
+| `ThreadSafeQueue` | `std::mutex` + two `std::condition_variable`s | `cvNotEmpty` blocks consumer when empty; `cvNotFull` blocks producers when full |
 | `LegacyLogger` | `std::atomic<int>` for logcount | Meyers' Singleton guarantees thread-safe initialization |
 | `LoggerAdapter` | Single consumer thread | Only one thread reads from the queue, avoiding contention on output |
 | Queue bounded size | Max 100 entries | Blocks producers via `cv.wait()` when full (back-pressure) |
-| `LoggerThread` | `std::mutex` + `std::condition_variable` | `workerthreadbusy` flag allows flush to wait until worker is idle and queue is empty |
+| `LoggerThread` | `std::mutex` + `std::condition_variable` | `cvFlush` + `busy` flag allows flush to wait until worker is idle and queue is empty. `stopped` flag prevents double-stop |
 
 ## Flush Protocol
 
-1. `LoggerAdapter::flush()` calls `LoggerThread::waitToFinishFlush()`
-2. `waitToFinishFlush()` waits on `cv` until `logQueue.isEmpty() && !workerthreadbusy`
-3. `processLogs()` sets `workerthreadbusy = true` before writing, `false` after, and calls `cv.notify_all()` when queue is empty and not busy
-4. `flush()` returns once all queued messages have been written
+1. `LoggerAdapter::flush()` returns immediately if `stopped` is true
+2. Otherwise calls `LoggerThread::waitToFinishFlush()`
+3. `waitToFinishFlush()` waits on `cvFlush` until `logQueue.isEmpty() && !busy`
+4. `processLogs()` sets `busy = true` before writing, `busy = false` after, and calls `cvFlush.notify_all()` when queue is empty
+5. `flush()` returns once all queued messages have been written
 
 ## Shutdown Protocol
 
-1. `LoggerAdapter::shutdown()` calls `LoggerThread::stop()`
-2. `stop()` calls `logQueue.setShutdown()` — sets shutdown flag and notifies all waiters
-3. `processLogs()` loop exits when `pop()` returns `std::nullopt`
-4. Worker thread is joined via `workerThread.join()`
-5. Destructor `~LoggerAdapter()` also calls `shutdown()` as a safety net
+1. `LoggerAdapter::shutdown()` returns immediately if `stopped` is true (idempotent)
+2. Sets `stopped = true`, then calls `LoggerThread::stop()`
+3. `stop()` returns immediately if its own `stopped` flag is true (idempotent)
+4. Sets `stopped = true`, calls `logQueue.setShutdown()` — sets shutdown flag and notifies all waiters
+5. `processLogs()` loop exits when `pop()` returns `std::nullopt`
+6. Worker thread is joined via `workerThread.join()`
+7. Destructor `~LoggerAdapter()` also calls `shutdown()` as a safety net
 
 ## File Structure
 
@@ -233,12 +239,16 @@ Design_pattern_project/
 │   ├── Thread_safe_queue.hpp   # ThreadSafeQueue declaration
 │   ├── legacy_logger.hpp       # LegacyLogger (Singleton) declaration
 │   └── Logger_factory.hpp      # Factory classes
-└── src/
-    ├── main.cpp                # Entry point + stress test
-    ├── Logger_adapter.cpp      # LoggerAdapter implementation
-    ├── Logger_thread.cpp       # LoggerThread implementation
-    ├── Thread_safe_queue.cpp   # ThreadSafeQueue implementation
-    └── legacy_logger.cpp       # LegacyLogger implementation
+├── src/
+│   ├── main.cpp                # Entry point + stress test
+│   ├── Logger_adapter.cpp      # LoggerAdapter implementation
+│   ├── Logger_thread.cpp       # LoggerThread implementation
+│   ├── Thread_safe_queue.cpp   # ThreadSafeQueue implementation
+│   └── legacy_logger.cpp       # LegacyLogger implementation
+└── test/
+    ├── test_thread_safe_queue.cpp  # Queue unit tests (16 tests)
+    ├── test_logger_thread.cpp      # LoggerThread tests (2 tests)
+    └── test_logger_adapter.cpp     # Adapter + integration tests (9 tests)
 ```
 
 ## Build & Run
@@ -246,5 +256,15 @@ Design_pattern_project/
 ```bash
 cd Design_patterns/Design_pattern_project
 cmake -B build && cmake --build build
+
+# Run the application
 ./build/threading
+
+# Run all tests
+cd build && ctest --output-on-failure
+
+# Run individual test suites
+./build/test_thread_safe_queue
+./build/test_logger_thread
+./build/test_logger_adapter
 ```

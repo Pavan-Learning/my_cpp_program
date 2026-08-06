@@ -1,23 +1,20 @@
-// Here defined the logger adapter class, 
 #ifndef LOGGER_ADAPTER_HPP
 #define LOGGER_ADAPTER_HPP
 
 #include "logger_interface.hpp"
-#include "log_levels.hpp"
-#include "legacy_logger.hpp"
 #include "Thread_safe_queue.hpp"
 #include "Logger_thread.hpp"
-
+#include "legacy_logger.hpp"
 
 class LoggerAdapter : public ILogger {
-    private:
-    std::condition_variable cv;
-    std::mutex mtx;
-    ThreadSafeQueue logQueue; // Thread-safe queue to hold log messages
-    LoggerThread loggingThread; // Thread for processing log messages
+private:
+    ThreadSafeQueue logQueue;
+    LoggerThread loggingThread;
+    bool stopped = false;
+
 public:
     LoggerAdapter();
-    ~LoggerAdapter();
+    ~LoggerAdapter() override;
     void log(LogLevel log_level, const std::string& message) override;
     void flush() override;
     void shutdown() override;

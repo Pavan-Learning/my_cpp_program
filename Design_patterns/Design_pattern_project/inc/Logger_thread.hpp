@@ -1,5 +1,4 @@
 
-
 #ifndef LOGGER_THREAD_HPP
 #define LOGGER_THREAD_HPP
 
@@ -7,25 +6,25 @@
 #include "Thread_safe_queue.hpp"
 
 class LoggerThread {
-    private:
-        std::thread workerThread;
-        std::condition_variable cv;
-        bool workerthreadbusy = false;
-        std::mutex mtx;
-        ThreadSafeQueue& logQueue; // Reference to the shared log queue
-        LegacyLogger& legacyLogger; // Reference to the legacy logger instance
-    public:
-        LoggerThread(ThreadSafeQueue& queue, LegacyLogger& logger);
-        ~LoggerThread();
+private:
+    std::thread workerThread;
+    std::condition_variable cvFlush;
+    std::mutex mtx;
+    bool busy = false;
+    bool stopped = false;
+    ThreadSafeQueue& logQueue;
+    LegacyLogger& legacyLogger;
 
-        void start();
+public:
+    LoggerThread(ThreadSafeQueue& queue, LegacyLogger& logger);
+    ~LoggerThread();
 
-        void stop();
+    void start();
+    void stop();
+    void waitToFinishFlush();
 
-        void waitToFinishFlush();
-
-    private:
-        void processLogs();
+private:
+    void processLogs();
 };
 
 #endif // LOGGER_THREAD_HPP
