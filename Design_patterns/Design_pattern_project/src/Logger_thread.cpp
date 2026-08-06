@@ -8,6 +8,7 @@ LoggerThread::~LoggerThread() {
 }
 
 void LoggerThread::start() {
+    if (workerThread.joinable()) return;
     workerThread = std::thread(&LoggerThread::processLogs, this);
 }
 

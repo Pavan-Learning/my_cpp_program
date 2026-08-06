@@ -1,7 +1,8 @@
 #include "../inc/Logger_adapter.hpp"
 
-LoggerAdapter::LoggerAdapter()
-    : loggingThread(logQueue, LegacyLogger::getInstance()) {
+LoggerAdapter::LoggerAdapter(size_t queueCapacity)
+    : logQueue(queueCapacity),
+      loggingThread(logQueue, LegacyLogger::getInstance()) {
     loggingThread.start();
 }
 

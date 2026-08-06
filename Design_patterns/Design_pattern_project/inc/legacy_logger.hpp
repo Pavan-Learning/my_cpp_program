@@ -14,6 +14,8 @@ private:
     LegacyLogger() = default;
     LegacyLogger(const LegacyLogger&) = delete;
     LegacyLogger& operator=(const LegacyLogger&) = delete;
+    LegacyLogger(LegacyLogger&&) = delete; // Delete move constructor
+    LegacyLogger& operator=(LegacyLogger&&) = delete; // Delete move assignment operator
 
 public:
     static LegacyLogger& getInstance();

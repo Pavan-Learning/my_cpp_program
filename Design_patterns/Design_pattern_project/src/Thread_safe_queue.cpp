@@ -1,5 +1,7 @@
 #include "../inc/Thread_safe_queue.hpp"
 
+ThreadSafeQueue::ThreadSafeQueue(size_t maxSize) : kMaxSize(maxSize) {}
+
 void ThreadSafeQueue::push(const std::string& message, LogLevel log_level) {
     {
         std::unique_lock<std::mutex> lock(mtx);

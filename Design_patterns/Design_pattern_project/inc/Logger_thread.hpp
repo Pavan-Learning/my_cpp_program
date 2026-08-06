@@ -10,8 +10,8 @@ private:
     std::thread workerThread;
     std::condition_variable cvFlush;
     std::mutex mtx;
-    bool busy = false;
-    bool stopped = false;
+    std::atomic<bool> busy{false};
+    std::atomic<bool> stopped{false};
     ThreadSafeQueue& logQueue;
     LegacyLogger& legacyLogger;
 

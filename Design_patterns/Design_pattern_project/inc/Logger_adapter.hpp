@@ -10,10 +10,10 @@ class LoggerAdapter : public ILogger {
 private:
     ThreadSafeQueue logQueue;
     LoggerThread loggingThread;
-    bool stopped = false;
+    std::atomic<bool> stopped{false};
 
 public:
-    LoggerAdapter();
+    explicit LoggerAdapter(size_t queueCapacity);
     ~LoggerAdapter() override;
     void log(LogLevel log_level, const std::string& message) override;
     void flush() override;
