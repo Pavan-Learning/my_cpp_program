@@ -13,7 +13,7 @@ private:
     std::atomic<bool> stopped{false};
 
 public:
-    explicit LoggerAdapter(size_t queueCapacity);
+    explicit LoggerAdapter(size_t queueCapacity = 100);
     ~LoggerAdapter() override;
     void log(LogLevel log_level, const std::string& message) override;
     void flush() override;
