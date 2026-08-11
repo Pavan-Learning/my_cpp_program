@@ -41,6 +41,11 @@ class Account
         {
             std::unique_lock<std::mutex> lc1(from.m, std::defer_lock);
             std::unique_lock<std::mutex> lc2(to.m, std::defer_lock);
+            if(from.m_balance < amount)
+            {
+                std::cout<< "Insufficient balance in " << from.m_name << "'s account to transfer " << amount << std::endl;
+                return;
+            }
 
 #if USE_STD_LOCK
             // SAFE: locks both mutexes atomically, no deadlock possible
