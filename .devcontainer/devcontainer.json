@@ -8,11 +8,18 @@
   "customizations": {
     "vscode": {
       "settings": {
-        "terminal.integrated.defaultProfile.linux": "bash"
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "github.copilot.enable": {
+          "*": false
+        }
+        // "editor.inlineSuggest.enabled": false
       },
       "extensions": [
         "ms-vscode.cpptools",
-        "ms-python.python"
+        "ms-python.python",
+        "-VisualStudioExptTeam.vscodeintellicode",
+        "-GitHub.copilot",
+        "-GitHub.copilot-chat"
       ]
     }
   },
