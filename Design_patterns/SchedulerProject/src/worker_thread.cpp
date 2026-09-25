@@ -2,7 +2,7 @@
 
 #include "../inc/worker_thread.hpp"
 
-WorkerThread::WorkerThread(ThreadSafeQueue& queue) : safequeue(queue){}
+WorkerThread::WorkerThread(ThreadSafeQueue& queue, ResultQueue& resultQueue_) : safequeue(queue), resultQueue(resultQueue_){}
 
 WorkerThread::~WorkerThread()
 {
@@ -29,8 +29,10 @@ void WorkerThread::workerOperation()
         if(taskItem != std::nullopt)
         {
             auto Result = taskItem->task->execute();
-            TaskResult res{taskItem->metadata.taskId, Result};
-            // here need to impleemt the ResultQueue things 
+            if(!Result){
+                TaskResult res{std::move(taskItem->metadata), Result, std::move(taskItem->task)};
+                resultQueue.push(std::move(res));
+            } 
         }
         else{
             break;

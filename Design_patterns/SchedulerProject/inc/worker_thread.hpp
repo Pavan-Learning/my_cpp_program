@@ -5,11 +5,12 @@
 
 #include <bits/stdc++.h>
 #include "ThreadSafeQueue.hpp"
+#include "ResultQueue.hpp"
 
 class WorkerThread
 {
 public:
-    explicit WorkerThread(ThreadSafeQueue& queue);
+    explicit WorkerThread(ThreadSafeQueue& queue, ResultQueue& resultQueue_);
     ~WorkerThread();
     void start();
     void stop();
@@ -18,6 +19,7 @@ private:
     void workerOperation();
     std::thread worker;
     ThreadSafeQueue& safequeue;
+    ResultQueue& resultQueue;
 };
 
 #endif

@@ -15,12 +15,14 @@ struct TaskMetaData
 {
     unsigned int taskId;
     Priority taskPriority;
+    unsigned int attemptCount = 0;
 };
 
 struct TaskResult
 {
-    unsigned int taskId;
+    TaskMetaData metadata;
     bool result;
+    std::unique_ptr<ITask> task;
 };
 
 

@@ -23,6 +23,7 @@ private:
     void stop();
 
     ThreadSafeQueue taskQueue;
+    ResultQueue resultsQueue;
     std::vector<std::unique_ptr<WorkerThread>> taskWorker;
     std::atomic<uint64_t> taskID{101};
     size_t queueSize;

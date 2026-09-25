@@ -1,4 +1,4 @@
-#include "TaskScheduler.hpp"
+#include "../inc/TaskScheduler.hpp"
 
 TaskScheduler::TaskScheduler(size_t queueSize, size_t workerCount)
 : taskQueue(queueSize){
@@ -27,7 +27,7 @@ void TaskScheduler::start(size_t workerCount)
 {
     for (size_t i = 0; i < workerCount; ++i)
     {
-        auto worker = std::make_unique<WorkerThread>(taskQueue);
+        auto worker = std::make_unique<WorkerThread>(taskQueue, resultsQueue);
         taskWorker.push_back(std::move(worker));
         taskWorker.back()->start();
     }
@@ -40,3 +40,6 @@ void TaskScheduler::stop()
         taskWorker[i]->stop();
     }
 }
+
+
+
