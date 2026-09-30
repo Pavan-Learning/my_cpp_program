@@ -1,6 +1,7 @@
 #include "support/check.hpp"
 
 #include <iostream>
+#include <type_traits>
 
 namespace before {
 class Rectangle {
@@ -56,6 +57,25 @@ private:
 int inspect(const Shape& shape) { return shape.area(); }
 }
 
+void demonstrate_drawback() {
+    const after::Rectangle rectangle(4, 5);
+    const after::Square square(5);
+    const after::Shape& shape = rectangle;
+    check(after::inspect(shape) == 20 && after::inspect(square) == 25, "Shared area operation works for both types");
+    static_assert(!std::is_base_of<after::Rectangle, after::Square>::value,
+                  "Square no longer promises the Rectangle-specific contract");
+
+    // Tradeoff: the honest common Shape interface only offers area(). It cannot
+    // promise independently changeable width and height for every shape.
+    // shape.width(6); would NOT compile, so it is intentionally only a comment.
+    // A caller needing rectangle-specific resizing must use a more specific type
+    // or design a different operation with a contract all participants can honor.
+    const after::Rectangle resized(6, 5);
+    check(resized.area() == 30 && rectangle.area() == 20, "Concrete construction expresses the rectangle-specific change");
+    std::cout << "Drawback: an honest Shape contract offers fewer operations; "
+                 "rectangle-specific resizing stays outside that interface.\n";
+}
+
 int main() {
     before::Rectangle rectangle;
     before::Square square;
@@ -64,4 +84,5 @@ int main() {
     check(after::inspect(after::Rectangle(4, 5)) == 20, "Rectangle obeys read-only shape contract");
     check(after::inspect(after::Square(5)) == 25, "Square obeys the same read-only contract");
     std::cout << "Broken substitution detected; corrected contract verified\n";
+    demonstrate_drawback();
 }

@@ -34,6 +34,32 @@ private:
     std::map<Token, std::function<void(int)>> observers_;
 };
 
+void demonstrate_drawback() {
+    Sensor sensor;
+    int delivered = 0;
+    const auto failing = sensor.subscribe([](int) { throw std::runtime_error("Listener failed"); });
+    sensor.subscribe([&delivered](int) { ++delivered; });
+    bool interrupted = false;
+    try { sensor.publish(20); }
+    catch (const std::runtime_error&) { interrupted = true; }
+    check(interrupted && delivered == 0, "A throwing listener prevents later delivery in this implementation");
+    sensor.unsubscribe(failing);
+    sensor.publish(21);
+    check(delivered == 1, "Delivery works after removing the failing listener");
+
+    // Drawback: synchronous callbacks run inside publish(), so their failures and
+    // nested publications affect other listeners. Decide an explicit error and
+    // re-entry policy; the pattern itself does not provide one.
+    Sensor nested;
+    std::vector<int> order;
+    nested.subscribe([&nested](int value) { if (value == 1) { nested.publish(2); } });
+    nested.subscribe([&order](int value) { order.push_back(value); });
+    nested.publish(1);
+    check(order == std::vector<int>({2, 1}), "Nested publication reaches the second listener before the original");
+    std::cout << "Drawback: one listener's exception skips later listeners; "
+                 "nested publication delivers values in order 2, then 1.\n";
+}
+
 int main() {
     Sensor sensor;
     std::vector<int> readings;
@@ -62,4 +88,5 @@ int main() {
     sensor.publish(24);
     check(late_calls == 1, "New subscription receives later publications");
     std::cout << "Observer delivery and subscription changes verified\n";
+    demonstrate_drawback();
 }

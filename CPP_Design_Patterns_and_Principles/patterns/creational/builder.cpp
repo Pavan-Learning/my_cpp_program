@@ -46,6 +46,26 @@ public:
     }
 };
 
+void demonstrate_drawback() {
+    Request::Builder reused;
+    const auto private_request = reused.url("/private").timeout(50).authenticate().build();
+
+    // Drawback: build() does not reset this builder. Changing only the URL keeps
+    // authentication and timeout from the previous request. Nothing is dangling;
+    // the mistake is assuming that a reused builder starts with fresh defaults.
+    const auto public_request = reused.url("/public").build();
+    check(private_request.authenticated(), "First request selected authentication");
+    check(public_request.authenticated() && public_request.timeout() == 50,
+          "Reused builder retains old choices");
+    check(private_request.url() == "/private", "Finished products are independent values");
+
+    const auto fresh_request = Request::Builder{}.url("/public").build();
+    check(!fresh_request.authenticated() && fresh_request.timeout() == 1000,
+          "A fresh builder starts from defaults");
+    std::cout << "Drawback: reused builder keeps authentication and timeout=50; "
+                 "a fresh builder uses no authentication and timeout=1000.\n";
+}
+
 int main() {
     const auto request = Request::Builder{}.url("/orders").timeout(500).authenticate().build();
     check(request.url() == "/orders" && request.timeout() == 500 && request.authenticated(),
@@ -61,4 +81,5 @@ int main() {
     catch (const std::invalid_argument&) { rejected = true; }
     check(rejected, "Invalid timeout must be rejected");
     std::cout << request.url() << " timeout=" << request.timeout() << '\n';
+    demonstrate_drawback();
 }

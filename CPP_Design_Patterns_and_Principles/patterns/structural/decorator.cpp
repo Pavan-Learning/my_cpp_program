@@ -41,6 +41,27 @@ public:
     std::string description() const override { return inner_->description() + ", cinnamon"; }
 };
 
+class HalfPrice final : public BeverageDecorator {
+public:
+    using BeverageDecorator::BeverageDecorator;
+    int cost() const override { return inner_->cost() / 2; }
+    std::string description() const override { return inner_->description() + ", half price"; }
+};
+
+void demonstrate_drawback() {
+    // Drawback: wrappers are applied from the inside out. Discount AFTER milk
+    // gives (200 + 50) / 2 = 125; milk AFTER discount gives 200 / 2 + 50 = 150.
+    // The same two features can therefore produce different prices.
+    const HalfPrice discount_last(std::make_unique<Milk>(std::make_unique<Coffee>()));
+    const Milk milk_last(std::make_unique<HalfPrice>(std::make_unique<Coffee>()));
+    check(discount_last.cost() == 125 && milk_last.cost() == 150, "Wrapper order changes the result");
+
+    const Milk repeated(std::make_unique<Milk>(std::make_unique<Coffee>()));
+    check(repeated.cost() == 300, "The pattern does not reject duplicate features");
+    std::cout << "Drawback: discount after milk=125, milk after discount=150, "
+                 "and accidental double milk=300 cents.\n";
+}
+
 int main() {
     std::unique_ptr<Beverage> drink = std::make_unique<Coffee>();
     check(drink->cost() == 200, "Base price in cents");
@@ -49,4 +70,5 @@ int main() {
     check(drink->cost() == 270, "Both decorators must contribute");
     check(drink->description() == "coffee, milk, cinnamon", "Wrapper order");
     std::cout << drink->description() << ": " << drink->cost() << " cents\n";
+    demonstrate_drawback();
 }

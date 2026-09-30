@@ -1,6 +1,7 @@
 #include "support/check.hpp"
 
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <stdexcept>
 #include <utility>
@@ -31,13 +32,37 @@ public:
 
     int size() const override {
         int total = 0;
-        for (const auto& child : children_) { total += child->size(); }
+        for (const auto& child : children_) {
+            const int child_size = child->size();
+            // Each file can fit in int while the combined total cannot. Check
+            // BEFORE adding: overflowing a signed int is undefined behavior.
+            if (child_size < 0 || child_size > std::numeric_limits<int>::max() - total) {
+                throw std::overflow_error("Directory total does not fit in int");
+            }
+            total += child_size;
+        }
         return total;
     }
 
 private:
     std::vector<std::unique_ptr<Node>> children_;
 };
+
+void demonstrate_drawback() {
+    Directory large;
+    large.add(std::make_unique<File>(std::numeric_limits<int>::max()));
+    large.add(std::make_unique<File>(1));
+    bool rejected = false;
+    try { static_cast<void>(large.size()); }
+    catch (const std::overflow_error&) { rejected = true; }
+    check(rejected, "Valid individual sizes can produce an unrepresentable total");
+
+    // Drawback: the tree abstraction does not solve numeric limits or recursion
+    // limits. We show the numeric limit safely; deliberately exhausting the
+    // call stack with a very deep tree would crash, not teach a portable result.
+    std::cout << "Drawback: two valid files exceed int's total-size limit; "
+                 "the explicit overflow guard rejects the sum.\n";
+}
 
 int main() {
     Directory root;
@@ -52,4 +77,5 @@ int main() {
     catch (const std::invalid_argument&) { rejected = true; }
     check(rejected && root.size() == 30, "Null insertion must leave the tree unchanged");
     std::cout << "Total bytes: " << root.size() << '\n';
+    demonstrate_drawback();
 }

@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <string>
 #include <utility>
+#include <vector>
 
 class Editor {
 public:
@@ -29,6 +30,30 @@ private:
     std::string text_;
 };
 
+void demonstrate_drawback() {
+    Editor editor;
+    std::vector<Editor::Snapshot> history;
+    std::size_t copied_characters = 0;
+    for (int revision = 0; revision < 3; ++revision) {
+        editor.type(std::string(1024, 'x'));
+        copied_characters += editor.text().size();
+        history.push_back(editor.save());
+    }
+    check(editor.text().size() == 3072 && copied_characters == 6144,
+          "Full snapshots retain the sum of all saved text lengths");
+
+    // Drawback: snapshots copy the WHOLE text, not only the latest addition.
+    // 1024 + 2048 + 3072 = 6144 retained characters for a 3072-character document.
+    // This counts text payload only, not string capacities or allocator overhead.
+    // Old text also remains recoverable until the snapshots themselves are removed.
+    editor.restore(history.front());
+    check(editor.text().size() == 1024, "Old content remains in the saved snapshot");
+    editor.restore(history.back());
+    check(editor.text().size() == 3072, "Restoring old state does not erase newer snapshots");
+    std::cout << "Drawback: three snapshots copy " << copied_characters
+              << " characters, and old revisions remain recoverable.\n";
+}
+
 int main() {
     Editor editor;
     editor.type("draft");
@@ -45,4 +70,5 @@ int main() {
     catch (const std::invalid_argument&) { rejected = true; }
     check(rejected, "Snapshot belongs to its originator");
     std::cout << editor.text() << '\n';
+    demonstrate_drawback();
 }

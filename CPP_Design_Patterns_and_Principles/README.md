@@ -57,6 +57,34 @@ topic, open its linked source, predict each check, and then run it. The checks s
 which behavior is demonstrated, while the limitation sections explain what remains
 outside the example.
 
+## See the Drawbacks in C++
+
+Every existing program now calls `demonstrate_drawback()` after its original
+successful example. Open that function in the same source file to find:
+
+- A small example of a drawback, limitation, or cost of over-applying the idea.
+- Plain-language C++ comments explaining the cause and a safer or simpler choice.
+- `check()` calls that verify the expected result, including deliberately wrong
+  results that the demonstration is meant to expose.
+- Output beginning with `Drawback:` that summarizes what happened.
+
+For example, [Decorator](patterns/structural/decorator.cpp) produces different prices
+when the same wrappers are reversed; [Builder](patterns/creational/builder.cpp)
+retains old settings when reused; [Observer](patterns/behavioral/observer.cpp)
+shows an exception stopping delivery; and [RAII](principles/raii_and_ownership.cpp)
+shows a shared-ownership cycle and then releases it safely.
+
+The original lesson walkthroughs describe the main successful examples. Additional
+types such as `Plane`, `Slider`, and `Triangle` support the drawback demonstrations.
+The new cases illustrate representative drawbacks, not every possible production
+failure. Class-count and wiring costs are visible in the code; counters describe
+work or text payload, not timing benchmarks or total memory measurements.
+
+Expected failures are caught and checked. A passing program means the drawback was
+observed as intended, not that the deliberately problematic approach is recommended.
+The examples do not dereference dangling pointers, use invalidated iterators, run
+infinite notification loops, or leave the demonstrated ownership cycle unreleased.
+
 ## Build and Run
 
 Requirements: a C++17 compiler, CMake 3.16 or newer, and a supported build tool.
@@ -84,6 +112,7 @@ Expected direct output from `command`:
 
 ```text
 hello C++
+Drawback: untracked edits disappear with length-based undo; routing all edits through History preserves the earlier command.
 ```
 
 `ctest -V` displays successful programs' output too. Normally CTest shows detailed

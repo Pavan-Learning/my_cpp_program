@@ -69,6 +69,27 @@ private:
     std::vector<std::unique_ptr<Command>> undone_;
 };
 
+void demonstrate_drawback() {
+    Document document;
+    document.append("hello");
+    History history;
+    history.run(std::make_unique<Append>(document, " world"));
+    document.append(" outside history");
+    check(history.undo() && document.text() == "hello", "Length-based undo also removes an untracked edit");
+
+    // Drawback: Append remembers a LENGTH, not which characters belong to it.
+    // Editing the document outside History breaks its last-edit-first undo rule.
+    // This is a defined but unwanted result, not an unsafe memory operation.
+    Document controlled;
+    controlled.append("hello");
+    History all_edits;
+    all_edits.run(std::make_unique<Append>(controlled, " world"));
+    all_edits.run(std::make_unique<Append>(controlled, " tracked edit"));
+    check(all_edits.undo() && controlled.text() == "hello world", "Recording every edit preserves undo order");
+    std::cout << "Drawback: untracked edits disappear with length-based undo; "
+                 "routing all edits through History preserves the earlier command.\n";
+}
+
 int main() {
     Document document;
     History history;
@@ -82,4 +103,5 @@ int main() {
     history.run(std::make_unique<Append>(document, " C++"));
     check(!history.redo(), "New edit invalidates redo branch");
     std::cout << document.text() << '\n';
+    demonstrate_drawback();
 }

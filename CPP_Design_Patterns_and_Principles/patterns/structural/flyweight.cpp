@@ -32,6 +32,27 @@ struct Glyph {
     std::shared_ptr<const GlyphStyle> style;
 };
 
+void demonstrate_drawback() {
+    // weak_ptr lets us observe lifetime without keeping the style alive itself.
+    std::weak_ptr<const GlyphStyle> observed;
+    {
+        StyleFactory cache;
+        {
+            const auto temporary_user = cache.get("RareFont", 72);
+            observed = temporary_user;
+        }
+        // Drawback: no glyph needs this style now, but the factory's map owns it.
+        // Many one-off styles would stay in memory until the factory is destroyed.
+        check(!observed.expired() && observed.use_count() == 1,
+              "Cache retains a style after its last external user leaves");
+        std::cout << "Drawback: unused style remains alive in the cache.\n";
+    }
+    check(observed.expired(), "Destroying the cache finally releases the unused style");
+    std::cout << "After cache destruction: unused style released.\n";
+    // Eviction or weak ownership can reduce retention, but need extra lookup and
+    // lifetime rules. Sharing is most useful when styles are actually reused.
+}
+
 int main() {
     StyleFactory factory;
     const Glyph first{'A', 0, factory.get("Mono", 12)};
@@ -41,4 +62,5 @@ int main() {
     check(first.style != heading.style, "Different styles need different flyweights");
     check(first.position != second.position, "Extrinsic state stays per glyph");
     std::cout << first.character << second.character << " share " << first.style->font << '\n';
+    demonstrate_drawback();
 }

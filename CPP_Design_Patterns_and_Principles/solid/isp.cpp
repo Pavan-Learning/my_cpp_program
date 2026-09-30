@@ -40,6 +40,24 @@ struct OfficeMachine final : Printer, Scanner {
 std::string print_job(const Printer& printer) { return printer.print(); }
 }
 
+std::string copy_document(const after::Scanner& scanner, const after::Printer& printer) {
+    return scanner.scan() + " then " + printer.print();
+}
+
+void demonstrate_drawback() {
+    const after::OfficeMachine office;
+    const after::BasicPrinter basic;
+    check(copy_document(office, office) == "scanned then printed", "One machine supplies both capabilities");
+    check(copy_document(office, basic) == "scanned then printed", "Two machines can also supply the capabilities");
+
+    // Tradeoff: a job needing BOTH capabilities now needs both dependencies wired
+    // correctly. Two narrow interfaces do not ensure that they refer to the same
+    // physical machine. That would need an additional rule if the job requires it.
+    // Avoid replacing clear parameters with repeated 'what type are you?' checks.
+    std::cout << "Drawback: a copy job needs scanner and printer wired separately; "
+                 "the interfaces alone do not require the same machine.\n";
+}
+
 int main() {
     bool unsupported = false;
     try { before::BasicPrinter{}.scan(); }
@@ -50,4 +68,5 @@ int main() {
     check(after::print_job(basic) == "printed", "Print-only client uses narrow interface");
     check(after::print_job(office) == "printed" && office.scan() == "scanned", "Capabilities can be combined");
     std::cout << "Print and scan capabilities separated\n";
+    demonstrate_drawback();
 }

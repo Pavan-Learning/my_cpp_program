@@ -47,6 +47,36 @@ private:
     mutable std::string trace_;
 };
 
+class FailingReport final : public Report {
+public:
+    const std::string& trace() const { return trace_; }
+
+protected:
+    std::string header() const override { trace_ += 'H'; return "header"; }
+    std::string body(int) const override {
+        trace_ += 'B';
+        throw std::runtime_error("Could not create report body");
+    }
+    std::string footer() const override { trace_ += 'F'; return "footer"; }
+
+private:
+    mutable std::string trace_;
+};
+
+void demonstrate_drawback() {
+    const FailingReport report;
+    bool failed = false;
+    try { static_cast<void>(report.generate(42)); }
+    catch (const std::runtime_error&) { failed = true; }
+    check(failed && report.trace() == "HB", "A throwing body prevents the footer hook from running");
+
+    // Drawback: hooks depend on the base class's shared control flow. An earlier
+    // hook can stop later ones. A footer is a normal step, NOT guaranteed cleanup.
+    // Put resource cleanup in owning objects' destructors (RAII), not in footer().
+    std::cout << "Drawback: failed report runs H then B, but never F; "
+                 "later hooks are not guaranteed cleanup.\n";
+}
+
 int main() {
     const CsvReport csv;
     const HtmlReport html;
@@ -63,4 +93,5 @@ int main() {
     catch (const std::invalid_argument&) {}
     check(traced.trace() == "HBF", "Invalid input executes no hooks");
     std::cout << html.generate(42);
+    demonstrate_drawback();
 }
