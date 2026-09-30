@@ -2,20 +2,22 @@
 
 ## 1. Definition
 
-**Memento saves an object's information so that the object can restore it later,
-without making other code understand or edit its private details.**
+**Memento is a saved checkpoint that an object can use to restore its earlier state.**
+The object makes and restores the checkpoint; other code only keeps it.
 
 The saved information is a **snapshot**: a record of the relevant values at one
 moment. Imagine saving a document checkpoint before trying an edit you may cancel.
 
 ## 2. The Problem It Solves
 
-A history manager could copy every document field itself, but then it must know
-which fields matter and how to restore them correctly. Changes to the document's
-internal design could break that external copying code.
+Suppose an editor lets the user try an edit and then cancel it. We need the earlier
+text somewhere. A history manager could copy the editor's fields itself, but then
+it must know which fields matter and how they fit together. Adding another private
+field could break that copying code.
 
-Let the document create and restore its own snapshot. Outside code only keeps the
-snapshot and returns it when restoration is requested.
+Ask the editor to `save()` instead. It returns a checkpoint containing the values
+it needs. The history keeps that checkpoint without looking inside. To cancel the
+edit, it passes the checkpoint back to the editor's `restore()` operation.
 
 ## 3. Understand the Idea Step by Step
 
@@ -24,9 +26,9 @@ snapshot and returns it when restoration is requested.
 3. Make changes to the object.
 4. If necessary, ask the same object to restore the snapshot.
 
-The **originator** is the object being saved, here the editor. The **memento** is
-the snapshot. The **caretaker** is code that holds the snapshot without editing its
-contents. **State** simply means the object's stored information.
+Here, **state** means the editor's stored text. The editor is called the
+**originator**, its checkpoint is the **memento**, and the code keeping the checkpoint
+is the **caretaker**. The editor knows what to save; the caretaker knows when to restore it.
 
 ### Picture: Save Before Trying an Edit
 
@@ -42,9 +44,8 @@ flowchart TD
 **Read it as a sentence:** save the old text, try a change, and restore the saved
 text if the change should be discarded. The checkpoint is not edited along with the document.
 
-Not everything can be saved by copying memory. Open connections or running callbacks
-may need to be recreated. If several fields change at once, a snapshot must not
-accidentally combine values from different moments.
+The saved text must be separate from the editable text. Otherwise changing the
+document would also change the checkpoint, leaving nothing old to restore.
 
 ## 4. Real-World Scenario
 
@@ -74,13 +75,76 @@ the live editor only; it is not a permanent identifier after that object is dest
 The example disables editor copying and assumes restoration happens while the
 original editor still exists.
 
+### C++ Flow Diagram
+
+Read downward through the three revisions in the drawback function. The counts
+measure saved text characters, not allocator overhead or execution time.
+
+```mermaid
+flowchart TD
+    First["Type 1024 characters; save all 1024"] --> Second["Append 1024; save all 2048"]
+    Second --> Third["Append 1024; save all 3072"]
+    Third --> Total["Snapshots retain 6144 characters in total"]
+    Total --> Restore["Old snapshot still restores 1024-character text"]
+```
+
+Each snapshot is a full copy, so old content remains recoverable while that snapshot
+exists. Restoring an old version does not delete newer snapshots in the history vector.
+
+### C++ Class Diagram
+
+The dotted arrow means creation. The ordinary arrow is a non-owning pointer used
+to check which editor produced the snapshot, not a lifetime guarantee.
+
+```mermaid
+classDiagram
+    Editor ..> Snapshot : creates with save
+    Snapshot --> Editor : owner_ identity pointer
+    class Editor {
+        +type(text) void
+        +save() Snapshot
+        +restore(snapshot) void
+        -text_ string
+    }
+    class Snapshot["Editor::Snapshot"] {
+        -text_ string
+    }
+```
+
+`Snapshot` is nested and grants `Editor` access to its private contents. In the
+drawback function, the caller's vector owns snapshots; the editor does not own them.
+
+### C++ Sequence Diagram
+
+Time runs downward. Solid arrows call operations; dashed arrows return a value.
+The snapshot is passed back later rather than calling the editor itself.
+
+```mermaid
+sequenceDiagram
+    participant Main as main()
+    participant Editor
+    Main->>Editor: type("draft")
+    Main->>Editor: save()
+    Editor-->>Main: checkpoint with copied text and owner pointer
+    Main->>Editor: type(" with changes")
+    Main->>Editor: restore(checkpoint)
+    Note over Editor: Check owner pointer, then copy saved text
+    Main->>Editor: text()
+    Editor-->>Main: draft
+```
+
+A foreign editor rejects this checkpoint. Pointer identity is a simple check for
+this example, not a durable identifier suitable for storing snapshots across runs.
+
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** checkpoints and cancellation without exposing private fields; saving
-and restoration rules remain beside the object that understands them.
+**Benefits:** callers can offer Cancel or Restore without knowing the editor's
+private fields. The editor keeps its saving and restoration rules together.
 
-**Drawbacks:** copies consume memory and time; snapshots may retain sensitive text;
-older snapshots need rules if the object format changes. External effects remain separate.
+**Drawbacks:** full checkpoints keep repeated copies of old text. The example saves
+versions of 1024, 2048, and 3072 characters, retaining 6144 characters in total.
+Old snapshots can also keep text the user has since deleted, so sensitive data needs
+care. Restoring text does not undo an exported file or a message already sent.
 
 **Use it when:** restoring saved values is clearer than reversing each individual
 action. Command instead records an action; it can use a snapshot when needed for undo.
@@ -89,8 +153,7 @@ action. Command instead records an action; it can use a snapshot when needed for
 
 **Question:** Should the history manager edit a snapshot's private fields to fix an error?
 
-**Answer:** No. It should ask the original object to perform a valid correction.
-The point is to avoid forcing outside code to know which combinations of private
-values are safe to restore.
+**Answer:** No. The editor understands its own values and should make the correction.
+The history's job is to keep a checkpoint and return it, not rewrite its contents.
 
 Optional detail: [behavioral technical notes](../../../patterns/behavioral/README.md).

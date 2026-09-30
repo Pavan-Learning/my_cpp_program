@@ -2,8 +2,7 @@
 
 ## 1. Definition
 
-**Abstract Factory creates a set of objects that are meant to work together. You
-choose the set once, then ask the same factory for its different parts.**
+**Abstract Factory gives you a matching set of objects from one chosen factory.**
 
 Imagine choosing a light theme for a screen. You want a light button and a light
 checkbox, not a light button mixed with a dark checkbox. A factory is simply an
@@ -11,12 +10,13 @@ object whose job is to create other objects. Here, it creates matching controls.
 
 ## 2. The Problem It Solves
 
-Without this arrangement, every screen might separately decide which button and
-checkbox classes to create. One screen could forget a check and mix two themes.
-Adding another theme would also mean finding these decisions throughout the program.
+Suppose each screen chooses its button and checkbox separately. A developer changes
+the button to dark but forgets the checkbox. Now the same screen has two themes.
+Adding a blue theme means finding and updating all those creation choices again.
 
-Instead, let one selected factory know how to create all the parts of a theme.
-The screen asks for a button and checkbox without repeating theme decisions.
+We want to make the theme choice once. Choose a dark factory, then ask it for both
+controls. It supplies a dark button and a dark checkbox, so the screen does not
+have to make the same decision twice.
 
 ## 3. Understand the Idea Step by Step
 
@@ -25,9 +25,10 @@ The screen asks for a button and checkbox without repeating theme decisions.
 3. Provide a light factory and a dark factory. Each creates its matching parts.
 4. Give one factory to the screen. Ask that factory for everything the screen needs.
 
-An **interface** is a list of operations the caller can rely on. Here it promises
-"make a button" and "make a checkbox." **Abstract** means that this common description
-does not choose the theme itself. A specific factory supplies that choice.
+The screen only needs two operations: "make a button" and "make a checkbox."
+Together they form the factory's **interface**, the operations callers can use.
+The common, abstract factory describes them; the light and dark factories decide
+which actual controls to create.
 
 ### Picture: Keep Each Set Together
 
@@ -46,10 +47,9 @@ flowchart TD
 **Read it as a sentence:** choosing the light factory gives both light controls;
 choosing the dark factory gives both dark controls.
 
-A **product** is a created object. A **product category** is a kind of part, such as
-button or checkbox. A **family** is a matching set, such as all the light controls.
-Adding a theme adds a family. Adding sliders adds a category and needs work in
-every factory so every theme can supply a slider.
+A button is a **product**. Light controls are a **family**, meaning a matching set.
+There are two different changes to consider: another theme needs another factory;
+another kind of control, such as a slider, needs support in every factory.
 
 ## 4. Real-World Scenario
 
@@ -57,9 +57,8 @@ Imagine an application that supports two database systems. Each system supplies
 its own connection and command objects. A selected database factory creates both,
 so the application does not accidentally send one system's command to the other.
 
-Real database objects may also need to belong to the same active connection.
-Choosing the right system is not enough by itself; the factory must preserve
-that relationship too. This is an example design, not a complete database library.
+The factory must also create commands for the correct connection. The useful idea
+is the same as the theme example: ask one place for parts that belong together.
 
 ## 5. Understand the C++ Example
 
@@ -81,13 +80,80 @@ pointer that owns the object and cleans it up automatically. The example prevent
 mixing by consistently using one factory; it does not forbid someone from manually
 creating and mixing controls elsewhere.
 
+### C++ Flow Diagram
+
+These arrows show required code changes when adding the `Slider` category,
+followed by the checks in `demonstrate_drawback()`.
+
+```mermaid
+flowchart TD
+    Add["Add Slider and WidgetFactory.slider()"] --> Light["Add LightSlider and LightFactory.slider()"]
+    Add --> Dark["Add DarkSlider and DarkFactory.slider()"]
+    Light --> Check["Check both families can draw sliders"]
+    Dark --> Check
+```
+
+A new product category affects every factory. A separate check mixes a light
+button with a dark checkbox: using factories does not make such mixing impossible.
+
+### C++ Class Diagram
+
+Hollow triangles mean inheritance; dotted arrows mean creation. This view focuses
+on the added slider category. Buttons and checkboxes have corresponding pairs.
+
+```mermaid
+classDiagram
+    WidgetFactory <|-- LightFactory
+    WidgetFactory <|-- DarkFactory
+    Slider <|-- LightSlider
+    Slider <|-- DarkSlider
+    LightFactory ..> LightSlider : creates
+    DarkFactory ..> DarkSlider : creates
+    class WidgetFactory {
+        +button() unique_ptr
+        +checkbox() unique_ptr
+        +slider() unique_ptr
+    }
+```
+
+The factory returns owned products; it does not retain them in a collection.
+That is why the arrows are not ownership diamonds.
+
+### C++ Sequence Diagram
+
+Solid arrows call methods; dashed arrows return values. This shows one possible
+evaluation order inside `draw_form(DarkFactory{})`.
+
+```mermaid
+sequenceDiagram
+    participant Form as draw_form()
+    participant Factory as DarkFactory
+    participant Button as DarkButton
+    participant Checkbox as DarkCheckbox
+    Form->>Factory: button()
+    Factory-->>Form: unique_ptr to DarkButton
+    Form->>Button: draw()
+    Button-->>Form: dark button
+    Form->>Factory: checkbox()
+    Factory-->>Form: unique_ptr to DarkCheckbox
+    Form->>Checkbox: draw()
+    Checkbox-->>Form: dark checkbox
+    Note over Form: Join both strings with a plus sign
+```
+
+Both products match because the same factory supplies them. The C++ expression
+does not require the button side to run before the checkbox side; either order
+produces the same combined text here.
+
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** matching parts are created together; theme choices do not spread
-through every screen; another theme can use the same screen code.
+**Benefits:** the screen asks for controls without choosing each concrete class.
+A blue factory can supply blue controls to the same screen code. Theme choices
+stay with the factories instead of being repeated throughout the screens.
 
-**Drawbacks:** there are more classes. A new kind of control must be added to every
-factory. All themes must genuinely support the operations promised to the screen.
+**Drawbacks:** adding sliders is more work than adding a theme. The example must
+add a slider operation and implement it for both light and dark factories. As the
+number of themes and control types grows, so does the number of classes to maintain.
 
 **Use it when:** you need several related kinds of objects. If you only need one
 object, a simple creation function may be enough. Builder addresses a different

@@ -5,19 +5,22 @@
 These standalone lessons teach each pattern independently of its code, then connect
 the definition and real-world scenario to an explicit C++ execution walkthrough.
 
-| Topic | Standalone lesson |
-| --- | --- |
-| Chain of Responsibility | [Concept-first Chain of Responsibility lesson](../../lessons/patterns/behavioral/chain_of_responsibility.md) |
-| Command | [Concept-first Command lesson](../../lessons/patterns/behavioral/command.md) |
-| Interpreter | [Concept-first Interpreter lesson](../../lessons/patterns/behavioral/interpreter.md) |
-| Iterator | [Concept-first Iterator lesson](../../lessons/patterns/behavioral/iterator.md) |
-| Mediator | [Concept-first Mediator lesson](../../lessons/patterns/behavioral/mediator.md) |
-| Memento | [Concept-first Memento lesson](../../lessons/patterns/behavioral/memento.md) |
-| Observer | [Concept-first Observer lesson](../../lessons/patterns/behavioral/observer.md) |
-| State | [Concept-first State lesson](../../lessons/patterns/behavioral/state.md) |
-| Strategy | [Concept-first Strategy lesson](../../lessons/patterns/behavioral/strategy.md) |
-| Template Method | [Concept-first Template Method lesson](../../lessons/patterns/behavioral/template_method.md) |
-| Visitor | [Concept-first Visitor lesson](../../lessons/patterns/behavioral/visitor.md) |
+Each diagram link opens the **flow diagram**, followed immediately by the **class**
+and **sequence diagrams**, with explanations tied to that C++ program.
+
+| Topic | Standalone lesson | C++ diagrams |
+| --- | --- | --- |
+| Chain of Responsibility | [Lesson](../../lessons/patterns/behavioral/chain_of_responsibility.md) | [Flow, class, sequence](../../lessons/patterns/behavioral/chain_of_responsibility.md#c-flow-diagram) |
+| Command | [Lesson](../../lessons/patterns/behavioral/command.md) | [Flow, class, sequence](../../lessons/patterns/behavioral/command.md#c-flow-diagram) |
+| Interpreter | [Lesson](../../lessons/patterns/behavioral/interpreter.md) | [Flow, class, sequence](../../lessons/patterns/behavioral/interpreter.md#c-flow-diagram) |
+| Iterator | [Lesson](../../lessons/patterns/behavioral/iterator.md) | [Flow, class, sequence](../../lessons/patterns/behavioral/iterator.md#c-flow-diagram) |
+| Mediator | [Lesson](../../lessons/patterns/behavioral/mediator.md) | [Flow, class, sequence](../../lessons/patterns/behavioral/mediator.md#c-flow-diagram) |
+| Memento | [Lesson](../../lessons/patterns/behavioral/memento.md) | [Flow, class, sequence](../../lessons/patterns/behavioral/memento.md#c-flow-diagram) |
+| Observer | [Lesson](../../lessons/patterns/behavioral/observer.md) | [Flow, class, sequence](../../lessons/patterns/behavioral/observer.md#c-flow-diagram) |
+| State | [Lesson](../../lessons/patterns/behavioral/state.md) | [Flow, class, sequence](../../lessons/patterns/behavioral/state.md#c-flow-diagram) |
+| Strategy | [Lesson](../../lessons/patterns/behavioral/strategy.md) | [Flow, class, sequence](../../lessons/patterns/behavioral/strategy.md#c-flow-diagram) |
+| Template Method | [Lesson](../../lessons/patterns/behavioral/template_method.md) | [Flow, class, sequence](../../lessons/patterns/behavioral/template_method.md#c-flow-diagram) |
+| Visitor | [Lesson](../../lessons/patterns/behavioral/visitor.md) | [Flow, class, sequence](../../lessons/patterns/behavioral/visitor.md#c-flow-diagram) |
 
 See the [complete lesson index](../../lessons/README.md). Additional implementation
 details, comparisons, and diagrams remain below.

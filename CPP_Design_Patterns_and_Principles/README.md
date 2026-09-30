@@ -7,6 +7,12 @@ now has its own standalone lesson: definition, the problem it solves, a deeper
 conceptual explanation, a real-world scenario, a step-by-step C++ walkthrough,
 benefits, drawbacks, alternatives, and an explained question.
 
+Every lesson also includes **flow, class, and sequence diagrams of its C++ example**,
+with plain-language explanations of decisions, ownership, call order, and selected
+drawbacks. The category tables have direct **C++ diagrams** links. Start with
+[Decorator's three C++ views](lessons/patterns/structural/decorator.md#c-flow-diagram)
+or the [diagram-reading guide](lessons/README.md#three-views-of-every-c-example).
+
 For example, begin with the [Factory Method lesson](lessons/patterns/creational/factory_method.md) or
 the [Single Responsibility lesson](lessons/solid/srp.md). The category chapters below
 remain supplementary technical notes; they are not the only explanations.

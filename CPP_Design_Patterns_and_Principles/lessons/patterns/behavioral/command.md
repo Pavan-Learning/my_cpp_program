@@ -2,20 +2,22 @@
 
 ## 1. Definition
 
-**Command stores an action as an object, including the information needed to perform it.**
-Because it is stored, the action can be run later, kept in a history, or sometimes undone.
+**Command turns an action into an object that remembers what to do and where to do it.**
+You can run that object now, keep it for later, or give it an undo operation.
 
 For example, an "append text" command remembers which document to edit and what
 text to add. It can also remember the previous length so it can undo that addition.
 
 ## 2. The Problem It Solves
 
-A direct function call performs work immediately. Afterward, it does not automatically
-leave a record explaining how to undo the work. Menu buttons and keyboard shortcuts
-may also need to trigger the same action without repeating the editing code.
+Appending text directly is easy. But then the user presses **Undo**. Which text
+was added? How long was the document before it? The finished function call does
+not keep those answers for us.
 
-Represent the request as a command. Buttons, shortcuts, and a history manager can
-all run that command without knowing how the document stores text.
+An `Append` command keeps the document, the text to add, and the earlier length.
+The history asks it to execute, then keeps it. Later, the history can ask that same
+command to undo. A menu and a keyboard shortcut can also use the same command
+instead of each containing editing logic.
 
 ## 3. Understand the Idea Step by Step
 
@@ -25,10 +27,9 @@ all run that command without knowing how the document stores text.
 4. Call its `undo()` to reverse its particular change.
 5. Redo runs the action again when the document is in the appropriate earlier state.
 
-The **receiver** is the object being changed, here the document. The **invoker** is
-the code asking a command to run, here the history manager. The **command** knows
-the action and its needed data. These are names for three jobs, not requirements
-to memorize before understanding an append operation.
+There are three jobs: `Document` holds the text, `Append` knows how to change it,
+and `History` asks the command to run. Pattern books call the document the
+**receiver** and the history the **invoker**. The command connects them.
 
 ### Picture: One Edit, Undo, Redo
 
@@ -54,8 +55,9 @@ A photo editor lets both a menu and a shortcut create a crop command. The comman
 records the crop and enough earlier image data to undo it. The history stores the
 command without knowing how cropping works.
 
-Large images may make saved undo data expensive. Uploading an image to a server
-needs a separate deletion request to reverse its external effect, if reversal is allowed.
+The history only needs to know "execute this" and "undo this." The crop command
+decides what earlier image data it must save. Keeping that data can cost a lot of
+memory for large images.
 
 ## 5. Understand the C++ Example
 
@@ -76,13 +78,83 @@ the most recent edit is undone first and no unrelated code has changed the text.
 History reserves room in its list before editing, so failure to obtain memory does
 not leave an edit without its history record.
 
+### C++ Flow Diagram
+
+Follow the text values in the drawback function. Arrows mean the next edit or undo.
+
+```mermaid
+flowchart TD
+    Initial["Document: hello"] --> Run["History runs Append: save length 5"]
+    Run --> Appended["Document: hello world"]
+    Appended --> Outside["Direct append: hello world outside history"]
+    Outside --> Undo["History.undo(): truncate to 5"]
+    Undo --> Lost["Document: hello; untracked edit also lost"]
+```
+
+Undo knows the earlier length, not which later characters came from which action.
+The controlled comparison records every edit so undo removes only the latest one.
+
+### C++ Class Diagram
+
+The triangle means inheritance. A filled diamond means exclusive ownership; an
+ordinary arrow means the borrowed document must outlive commands that use it.
+
+```mermaid
+classDiagram
+    Command <|-- Append
+    History "1" *-- "0..*" Command : owns done_ and undone_
+    Append --> Document : borrows document_
+    class Command {
+        +execute() void
+        +undo() void
+    }
+    class History {
+        +run(command) void
+        +undo() bool
+        +redo() bool
+    }
+```
+
+Moving a command between the two vectors transfers its owner; it does not copy
+the document. Running a new command clears the redo branch.
+
+### C++ Sequence Diagram
+
+Solid arrows call; dashed arrows return. This traces the second append and its
+undo in `main()`, starting with a document that already contains `hello`.
+
+```mermaid
+sequenceDiagram
+    participant Main as main()
+    participant History
+    participant Append
+    participant Document
+    Main->>History: run(Append of " world")
+    History->>Append: execute()
+    Append->>Document: text().size()
+    Document-->>Append: 5
+    Append->>Document: append(" world")
+    Note over History: Store command in done_, clear undone_
+    Main->>History: undo()
+    History->>Append: undo()
+    Append->>Document: truncate(5)
+    Note over History: Move command to undone_
+    History-->>Main: true
+```
+
+History reserves vector capacity before changing the document. The diagram focuses
+on behavior and omits those allocation-preparation calls.
+
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** one action can be triggered in different ways, delayed, stored, or used
-in a history. Action-specific data stays beside the code that uses it.
+**Benefits:** a button, shortcut, or history can run an action without knowing its
+editing details. The command keeps the information it needs to execute and undo,
+and can wait in a queue before being run.
 
-**Drawbacks:** extra objects and saved data; the target must stay alive; undo and
-retry rules can be difficult, especially for actions outside the program.
+**Drawbacks:** undo must match how changes are made. The drawback example appends
+text outside the history; undo then truncates to the saved length and removes that
+untracked text too. Commands also need memory, and their document must stay alive.
+Some actions, such as sending an email, have no simple undo.
 
 **Use it when:** actions need history, metadata, or delayed execution. A plain function
 is enough for many immediate one-off tasks. Memento stores an earlier state, while

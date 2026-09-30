@@ -2,20 +2,22 @@
 
 ## 1. Definition
 
-**Do not build a feature just because someone imagines it might be useful someday.**
-Build it when there is a real, justified need. YAGNI stands for You Aren't Gonna Need It.
+**YAGNI means postponing features that nobody needs yet.** It stands for You Aren't
+Gonna Need It. Build the required behavior well before adding guessed future features.
 
 This is not a prediction that a feature will never be needed. It is a reminder that
 building it now has a cost, while the eventual requirement may be different or never arrive.
 
 ## 2. The Problem It Solves
 
-A simple report request can turn into weeks of building themes, plug-ins, email
-scheduling, and multiple export formats. All that unused code still needs testing,
-documentation, and maintenance.
+The request is to show `Available: 12`. We could write one formatting function.
+Instead, imagine first building themes, a plug-in registry, scheduled emails, and
+several export formats, just in case.
 
-Worse, the guessed framework may make the real future feature harder to add because
-it was designed around the wrong assumptions.
+The user still needs the same short message, but now there is much more code to
+test and maintain. The eventual reporting request may not even fit our guesses.
+Deliver the needed text output now, and add another format when there is a real
+reason to support it.
 
 ## 3. Understand the Idea Step by Step
 
@@ -24,9 +26,10 @@ it was designed around the wrong assumptions.
 3. Keep code readable and tested so later changes remain practical.
 4. Reconsider the design when a real additional requirement appears.
 
-A **requirement** is something the system must provide or guarantee. A **speculative
-feature** is a guessed future capability without sufficient evidence. Known security,
-safety, and data-protection requirements are not optional speculation.
+A **requirement** is something the system must do or guarantee now. A guessed
+future capability is a **speculative feature**. Rejecting invalid stock counts may
+be a requirement; supporting unrequested report themes is speculation. Do not treat
+known security or data-protection work as an optional future feature.
 
 ### Picture: Decide Whether the Feature Has a Real Need
 
@@ -67,18 +70,72 @@ not to demonstrate how many classes can be fitted into a reporting problem.
 4. Checks verify zero and 12.
 5. The displayed result is `Available: 12`.
 
-There is no report registry or inheritance tree because the current job does not
-need one. The formatter also does not own stock validity. If negative counts are
-forbidden, the inventory or input code must enforce that rule deliberately rather
-than assuming formatting has validated it.
+The formatter needs no report registry or class hierarchy. It only makes text from
+a count. It does not check whether the count is valid, so the drawback example adds
+a small checked entry point when nonnegative stock is required.
+
+### C++ Flow Diagram
+
+Follow the two entry points used in `demonstrate_drawback()`. Arrows are calls or
+results, not instructions to add a larger framework.
+
+```mermaid
+flowchart TD
+    Input["Input stock: -1"] --> Direct["stock_report(-1)"]
+    Direct --> Invalid["Returns Available: -1"]
+    Input --> Checked["report_valid_stock(-1)"]
+    Checked --> Reject["Throw invalid_argument before formatting"]
+```
+
+Known validation is part of the present requirement. YAGNI rejects speculative
+features, not a small check already needed to reject invalid input.
+
+### C++ Class Diagram
+
+This example has no user-defined classes. The `module` box groups its two actual
+free functions; it is a structure view rather than an inheritance hierarchy.
+
+```mermaid
+classDiagram
+    class Functions["Free functions in yagni.cpp"] {
+        <<module>>
+        +stock_report(available) string
+        +report_valid_stock(available) string
+    }
+```
+
+`stock_report()` formats a number. `report_valid_stock()` adds a known boundary
+rule and reuses the formatter. No plugin or database class exists in the sample.
+
+### C++ Sequence Diagram
+
+Time runs downward. Solid arrows call functions; dashed arrows return text.
+This is the valid-input comparison in the drawback function.
+
+```mermaid
+sequenceDiagram
+    participant Demo as demonstrate_drawback()
+    participant Checked as report_valid_stock()
+    participant Format as stock_report()
+    Demo->>Checked: report_valid_stock(12)
+    Note over Checked: 12 is nonnegative
+    Checked->>Format: stock_report(12)
+    Format-->>Checked: Available: 12
+    Checked-->>Demo: Available: 12
+```
+
+For negative input, the formatter call is skipped. The original `main()` calls
+the formatter directly for the known-valid values 0 and 12.
 
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** less unused code, faster feedback from actual users, fewer unnecessary
-failure paths, and less maintenance of guessed designs.
+**Benefits:** users get the required report sooner, and there are no unused plug-ins
+or export modes to maintain. Later choices can follow real requests instead of guesses.
 
-**Drawbacks:** applying the slogan carelessly can ignore costly long-term obligations.
-Some planning is essential for safety, compatibility, and durable data.
+**Drawbacks:** misusing YAGNI can leave today's job incomplete. The formatter happily
+prints `Available: -1`; the checked function rejects it. That validation is not an
+unnecessary future feature when negative stock is forbidden. Stored data formats
+and public interfaces also need thought early because changing them later can be costly.
 
 **Use it by asking:** what evidence supports this feature, and what happens if we
 delay the decision? Open/Closed is useful for known kinds of change; it does not

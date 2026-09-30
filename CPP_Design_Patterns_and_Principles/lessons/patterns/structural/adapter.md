@@ -2,20 +2,21 @@
 
 ## 1. Definition
 
-**Adapter translates between what existing code provides and what other code expects.**
-It lets the two work together without rewriting either side.
+**Adapter lets two pieces of code work together by translating between them.**
 
 Imagine a temperature display that expects Celsius, while an old thermometer gives
 Fahrenheit. An adapter reads the old value, converts it, and gives the display Celsius.
 
 ## 2. The Problem It Solves
 
-Without an adapter, every display using that thermometer must remember the conversion.
-One may forget and show 212 as if it meant Celsius. Changing the thermometer library
-may be impossible if another company provides it.
+The display asks for Celsius, but the thermometer only offers Fahrenheit. Connecting
+them directly gives the wrong meaning: boiling water could appear as 212 Celsius.
+We could add a conversion to every display, but each new caller must remember it.
 
-Put the translation in one place. The old thermometer stays unchanged, and the
-display keeps asking for the unit it understands.
+Changing the old thermometer may not be possible, and we do not want every display
+to understand it. Put an adapter between them. The display asks the adapter for
+Celsius; the adapter reads Fahrenheit and converts the answer. Neither side needs
+to change how it works.
 
 ## 3. Understand the Idea Step by Step
 
@@ -24,9 +25,9 @@ display keeps asking for the unit it understands.
 3. When asked for Celsius, read Fahrenheit and convert it.
 4. Return the converted answer, not merely the original value under a new name.
 
-An **interface** describes the operations callers can use. The **target interface**
-is the expected one: read Celsius. The **adaptee** is the existing thing being adapted:
-the Fahrenheit thermometer. These names describe the roles, not extra work you must add.
+The display expects a `celsius()` operation. That expected way of asking is the
+**target interface**. The old Fahrenheit thermometer is called the **adaptee**.
+The adapter implements the expected operation using the old thermometer.
 
 ### Picture: Follow the Temperature Value
 
@@ -42,8 +43,8 @@ flowchart TD
 **Read it as a sentence:** the old reading goes through a conversion before the
 new display uses it. Renaming Fahrenheit as Celsius would not be a conversion.
 
-An adapter must also handle differences in errors or data formats when they matter.
-It cannot promise abilities the old system does not have simply by changing a name.
+The translation must preserve meaning. Changing a function name is not enough if
+its units, values, or error reports still mean something different.
 
 ## 4. Real-World Scenario
 
@@ -72,13 +73,71 @@ not a copy. It does not own or destroy the thermometer. The thermometer must kee
 existing for as long as the adapter uses it. A real sensor also needs rules for
 failed readings and readings that are too old to trust.
 
+### C++ Flow Diagram
+
+Follow either arithmetic path. This compares the correct adapter with the
+deliberately wrong expression in `demonstrate_drawback()`.
+
+```mermaid
+flowchart TD
+    Read["Read 212 Fahrenheit"] --> Subtract["Subtract 32: get 180"]
+    Subtract --> Correct["180 * 5.0 / 9.0"]
+    Subtract --> Wrong["180 * (5 / 9)"]
+    Correct --> Good["100 Celsius"]
+    Wrong --> Bad["Integer 5 / 9 is zero: result 0"]
+```
+
+Returning `double` does not repair integer division that already produced zero.
+The problem is a faulty translation, not a limitation of converting these units.
+
+### C++ Class Diagram
+
+The hollow triangle means inheritance. The ordinary arrow means a borrowed
+reference: the adapter does not destroy the thermometer.
+
+```mermaid
+classDiagram
+    TemperatureSensor <|-- TemperatureAdapter
+    TemperatureAdapter --> LegacyThermometer : borrows legacy_
+    class TemperatureSensor {
+        +celsius() double
+    }
+    class LegacyThermometer {
+        +read_fahrenheit() double
+    }
+```
+
+The thermometer must outlive the adapter. `main()` declares the thermometers first
+and reaches the adapter through a `TemperatureSensor` reference.
+
+### C++ Sequence Diagram
+
+Solid arrows call functions; dashed arrows return values. Time runs downward.
+
+```mermaid
+sequenceDiagram
+    participant Main as main()
+    participant Adapter as hot TemperatureAdapter
+    participant Legacy as boiling LegacyThermometer
+    Main->>Adapter: sensor.celsius()
+    Adapter->>Legacy: read_fahrenheit()
+    Legacy-->>Adapter: 212
+    Note over Adapter: Convert (212 - 32) * 5.0 / 9.0
+    Adapter-->>Main: 100
+```
+
+Only the adapter understands the old units. The caller receives the Celsius
+result promised by the new interface.
+
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** reuse existing code; keep conversions in one place; give callers
-consistent operations and units.
+**Benefits:** the old thermometer remains useful, and every display gets the same
+conversion. A caller can ask for Celsius without knowing which thermometer supplies it.
 
-**Drawbacks:** another layer to understand, and incorrect translation can quietly
-produce wrong results. Missing features still need real implementation work.
+**Drawbacks:** a mistake in the adapter reaches every caller. The drawback example
+uses integer `5 / 9`, which becomes zero and produces a wrong reading. We need to
+test the translation, not just whether the call compiles. An adapter also cannot
+supply a measurement the old thermometer never provided.
 
 **Use it when:** there is an actual mismatch. Decorator adds behavior while keeping
 the expected operations; Adapter changes how an existing component is used.

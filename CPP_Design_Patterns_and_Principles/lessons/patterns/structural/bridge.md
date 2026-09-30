@@ -2,20 +2,21 @@
 
 ## 1. Definition
 
-**Bridge separates two choices that should be able to change independently, then
-connects them through an object that does the supporting work.**
+**Bridge keeps two changing parts separate and lets one use the other.**
 
 For example, "which shape?" and "which drawing tool?" are different choices. A circle
 should not need a separate class for every drawing technology it can use.
 
 ## 2. The Problem It Solves
 
-Imagine creating `VectorCircle`, `RasterCircle`, `VectorSquare`, and `RasterSquare`.
-Every new shape needs versions for each drawing tool, and every new tool needs
-versions for each shape. The combinations grow quickly.
+Start with a circle drawn by a vector tool. Then add a pixel-based tool. We could
+create `VectorCircle` and `RasterCircle`. Now add a square: we also need
+`VectorSquare` and `RasterSquare`. Each new shape repeats the same split.
 
-Keep shape logic in shape classes and drawing-tool logic in drawing classes. Give
-each shape the tool it should use instead of making a class for every pair.
+There are really two choices here: what to draw and how to draw it. Put them in
+separate objects. A `Circle` holds its radius and asks a supplied drawing tool to
+draw it. We can use the same circle code with either tool, without a class for
+every shape-and-tool pair.
 
 ## 3. Understand the Idea Step by Step
 
@@ -43,9 +44,9 @@ flowchart TD
 how drawing happens. The diagram's question is explanatory; the code calls the
 supplied tool through its common interface.
 
-Books call the shape side the **abstraction**, meaning the operation the caller cares
-about, and the tool side the **implementation**, meaning the supporting work. Both
-sides can grow separately only while the agreed tool operations remain sufficient.
+Pattern books call the shape side the **abstraction** and the drawing-tool side the
+**implementation**. In this example, think "what shape?" and "which tool?" The link
+between those two objects is the bridge.
 
 ## 4. Real-World Scenario
 
@@ -53,8 +54,9 @@ A remote-control product supports televisions and radios. The remote's buttons
 describe user actions; each device supplies its own way to change volume or power.
 An advanced remote can add a mute button using the existing device operations.
 
-A device with no volume control cannot honestly support a promise to change volume.
-The shared operations must fit all the devices they claim to support.
+Adding an advanced remote does not mean writing one version for the TV and another
+for the radio. It can use either device's existing volume operations. A device
+without volume control would need a different set of supported actions.
 
 ## 5. Understand the C++ Example
 
@@ -74,13 +76,78 @@ destroying them. Renderers must outlive the circles. In this small interface, ad
 a rectangle would also require adding renderer support; the pattern does not make
 every future change independent automatically.
 
+### C++ Flow Diagram
+
+These arrows mean required development steps for the rectangle drawback example.
+
+```mermaid
+flowchart TD
+    New["Add Rectangle.draw()"] --> API["Renderer needs rectangle(width, height)"]
+    API --> Vector["Implement VectorRenderer.rectangle()"]
+    API --> Raster["Implement RasterRenderer.rectangle()"]
+    Vector --> Verify["Check both tools draw a 3x4 rectangle"]
+    Raster --> Verify
+```
+
+Shape choice and tool choice are separate, but their agreed operations still
+connect them. A new operation requires changes on both sides of that agreement.
+
+### C++ Class Diagram
+
+Triangles point to base classes. The ordinary arrow is a borrowed renderer,
+not ownership. Each shape uses one selected tool.
+
+```mermaid
+classDiagram
+    Shape <|-- Circle
+    Shape <|-- Rectangle
+    Shape --> Renderer : borrows renderer_
+    Renderer <|-- VectorRenderer
+    Renderer <|-- RasterRenderer
+    class Renderer {
+        +circle(radius) string
+        +rectangle(width, height) string
+    }
+```
+
+There is no `VectorCircle` class. A `Circle` works with either renderer supplied
+to its constructor, and the renderer must remain alive while that circle uses it.
+
+### C++ Sequence Diagram
+
+Read downward; solid arrows call, dashed arrows return. These are the two normal
+circle objects in `main()`, each already connected to a different renderer.
+
+```mermaid
+sequenceDiagram
+    participant Main as main()
+    participant Scalable as scalable Circle
+    participant Vector as VectorRenderer
+    participant Pixels as pixels Circle
+    participant Raster as RasterRenderer
+    Main->>Scalable: draw()
+    Scalable->>Vector: circle(4)
+    Vector-->>Scalable: vector circle 4
+    Scalable-->>Main: vector circle 4
+    Main->>Pixels: draw()
+    Pixels->>Raster: circle(4)
+    Raster-->>Pixels: raster circle 4
+    Pixels-->>Main: raster circle 4
+```
+
+The sample returns text instead of drawing an image. The calls show the important
+part: the circle asks its selected tool to do the drawing work.
+
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** fewer classes for combinations; separate shape and drawing code;
-different tools can be tested or selected independently.
+**Benefits:** we do not need separate `VectorCircle` and `RasterCircle` classes.
+Shape code stays with shapes, and drawing code stays with tools. We can choose
+either renderer when creating a circle.
 
-**Drawbacks:** another interface and extra calls. If the tool interface is too
-narrow, new features still force changes on both sides.
+**Drawbacks:** the parts still need to agree on the drawing operations. In the
+drawback example, adding a rectangle requires a new renderer method and changes
+to both renderers. Bridge avoids a class for every combination; it does not make
+every feature change affect only one class.
 
 **Use it when:** there really are two changing choices. Adapter is more often used
 to connect existing incompatible code; Bridge deliberately separates the choices.

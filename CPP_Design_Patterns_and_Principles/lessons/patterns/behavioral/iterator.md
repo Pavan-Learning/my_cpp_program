@@ -2,21 +2,21 @@
 
 ## 1. Definition
 
-**Iterator is an object that keeps your current position while you visit the items
-in a collection.** You can read the current item, move forward, and check whether
-you have reached the end without knowing how the collection stores its items.
+**Iterator keeps your place while you visit a collection one item at a time.**
+It lets you read the current item, move on, and check whether you have finished.
 
 Think of a bookmark in a playlist. The playlist holds the songs; the bookmark tracks
 which song you are looking at.
 
 ## 2. The Problem It Solves
 
-Search code should not need separate storage-specific logic for every collection.
-A list, array-like container, and tree may store items differently, yet all can
-offer a way to visit items one by one.
+Suppose we want to find a song in a playlist. With an array we might use an index;
+with a linked list we would follow links. Should the search code know both storage
+layouts just to visit the songs?
 
-An iterator gives algorithms a small common set of operations. An **algorithm** here
-simply means a reusable procedure, such as searching for a matching item.
+An iterator gives it a simpler job: start here, read an item, then move to the next
+position. The collection supplies those operations. A search procedure, or
+**algorithm**, can use them without knowing how the songs are stored.
 
 ## 3. Understand the Idea Step by Step
 
@@ -41,19 +41,19 @@ flowchart TD
 
 **Read it as a sentence:** read Intro, move to Finale, then reach the stopping point.
 
-Not all iterators offer the same abilities. A **forward iterator** supports repeated
-passes and independent copies of a position. Some input sources can only be read
-once. Other iterators also move backward or jump by an offset. An algorithm must
-only use the abilities its iterator promises.
+Our **forward iterator** can move forward, and copying it gives another position
+that can move independently. It can also start another pass through the playlist.
+Do not assume every iterator can do more: jumping backward or skipping directly
+to item 100 needs operations this iterator does not offer.
 
 ## 4. Real-World Scenario
 
 A search function visits records and stops when one matches. It can use the same
 basic loop for different in-memory collections that provide suitable iterators.
 
-A database cursor may look similar but fetch data over a network and allow only one
-pass. That difference must remain clear; the shared idea of iteration does not make
-all sources equally cheap or allow every operation.
+A database cursor follows a similar idea, but advancing it might fetch data over
+a network. It may also allow only one pass. The visiting code must use the
+operations that its particular iterator supports.
 
 ## 5. Understand the C++ Example
 
@@ -73,13 +73,77 @@ Iterators use the playlist's storage but do not keep it alive. Growing a vector 
 move its storage, making old iterators unusable. This is **invalidation**. The wrapper
 only promises forward iteration; counting distance need not be a single quick jump.
 
+### C++ Flow Diagram
+
+Arrows follow the safe invalidation demonstration. An iterator is a position in a
+collection, not an independent copy of a track.
+
+```mermaid
+flowchart TD
+    One["Playlist contains Intro"] --> Save["Save end iterator and copy Intro string"]
+    Save --> Add["add(Encore): old end is invalid"]
+    Add --> Refresh["Get fresh begin() and end()"]
+    Refresh --> Count["distance now equals 2"]
+    Count --> Copy["Copied title still equals Intro"]
+```
+
+The program never compares or dereferences the invalid position. It replaces the
+saved end and obtains a fresh begin before measuring the changed collection.
+
+### C++ Class Diagram
+
+The filled diamond means contained storage. The ordinary arrow means an iterator
+refers to positions in that storage without owning the playlist.
+
+```mermaid
+classDiagram
+    Playlist *-- TrackStorage : owns tracks_
+    Playlist ..> Iterator : returns positions
+    Iterator --> TrackStorage : refers into storage
+    class TrackStorage["vector of strings"]
+    class Playlist {
+        +add(title) void
+        +begin() Iterator
+        +end() Iterator
+    }
+    class Iterator["Playlist::Iterator"]
+```
+
+`TrackStorage` is only a diagram label for the standard vector. Nested class
+syntax does not give an iterator ownership of, or lifetime control over, a playlist.
+
+### C++ Sequence Diagram
+
+Time runs downward; solid arrows are operations, dashed arrows are results.
+`operator++(int)` is the C++ name for post-increment, as in `current++`.
+
+```mermaid
+sequenceDiagram
+    participant Main as main()
+    participant List as Playlist
+    participant Current as current Iterator
+    Main->>List: begin()
+    List-->>Main: iterator at Intro
+    Main->>Current: operator++(int)
+    Note over Current: Save old position, then advance to Finale
+    Current-->>Main: saved iterator at Intro
+    Main->>Current: operator*()
+    Current-->>Main: reference to Finale
+```
+
+The saved and current iterators can have different positions. Both still depend
+on the underlying vector remaining alive and on operations not invalidating them.
+
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** reusable search and counting code; callers do not need storage details;
-separate iterators can track separate positions when supported.
+**Benefits:** the same search and counting tools can use the playlist's iterators.
+Callers do not need access to its internal vector, and two iterators can keep
+different places in the same playlist.
 
-**Drawbacks:** using an invalid iterator can cause incorrect behavior. The collection
-must remain alive, and callers need to understand which changes invalidate positions.
+**Drawbacks:** a position is not a saved copy of an item. Adding a track can make
+old positions invalid, so the drawback example gets fresh iterators after the
+change. Using an invalid one can cause undefined behavior. The playlist must also
+remain alive while its iterators are used.
 
 **Use it when:** traversing collections. Prefer the iterators already provided by
 standard containers unless a custom interface has a real purpose.

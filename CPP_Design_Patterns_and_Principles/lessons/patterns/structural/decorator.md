@@ -2,20 +2,22 @@
 
 ## 1. Definition
 
-**Decorator adds behavior to an object by placing another object around it.** The
-outer object accepts the same requests, asks the inner object to work, and adds its part.
+**Decorator adds an extra feature by wrapping an existing object.** The wrapper
+supports the same requests, lets the inner object do its work, and adds its own part.
 
 Think of a coffee order: start with coffee, add milk, then add cinnamon. Each extra
 adds its price without requiring a separate class for every possible drink combination.
 
 ## 2. The Problem It Solves
 
-If every combination needs its own class, we soon have coffee with milk, coffee with
-cinnamon, coffee with both, and many more. Putting all choices in one large class
-can instead produce a confusing collection of switches.
+Start with plain coffee. Customers then ask for milk, cinnamon, or both. If we
+write a class for every drink, each new extra creates more combinations to support.
+The milk-price rule could end up repeated in several of those classes.
 
-Make each extra a small object that can surround any beverage. A **wrapper** means
-this outer object that holds and uses another object.
+Instead, write milk once as an object that holds another beverage. When asked for
+the cost, it asks that beverage for its cost and adds 50 cents. Cinnamon works the
+same way. This outer object is a **wrapper**. It can wrap coffee or an already
+decorated coffee, so extras can be combined without a class for every combination.
 
 ## 3. Understand the Idea Step by Step
 
@@ -25,8 +27,9 @@ this outer object that holds and uses another object.
 3. A cinnamon wrapper does the same with its own charge.
 4. Wrap the coffee with milk, then wrap that result with cinnamon.
 
-The shared **interface** is the set of operations every layer supports. Because a
-wrapped drink still supports those operations, it can be wrapped again.
+Every layer supports `cost()` and `description()`. These shared operations are the
+**interface**. To the next wrapper, coffee with milk is still just a beverage it
+can ask for a cost.
 
 ### Picture: Watch the Price Grow
 
@@ -41,9 +44,9 @@ flowchart TD
 
 **Read it as a sentence:** start at 200, add 50 for milk, then add 20 for cinnamon.
 
-Order matters for many kinds of wrappers. Compressing data before encrypting it is
-different from compressing already encrypted data. The coffee arithmetic happens
-to be simple; do not assume every decoration can be reordered freely.
+Adding milk and cinnamon gives the same price in either order. That will not be
+true for every extra: applying a discount before adding milk can differ from
+discounting the whole drink. The C++ drawback example shows both results.
 
 ## 4. Real-World Scenario
 
@@ -72,13 +75,76 @@ Open [decorator.cpp](../../../patterns/structural/decorator.cpp).
 Moving that pointer transfers this responsibility without copying the drink.
 Destroying the outer layer cleans up the whole chain. A missing inner drink is rejected.
 
+### C++ Flow Diagram
+
+Follow each branch downward. These are the two calculations in
+`demonstrate_drawback()`, not the order of constructor calls.
+
+```mermaid
+flowchart TD
+    Start["Coffee costs 200 cents"] --> Choice{"Which extra runs last?"}
+    Choice -->|Discount last| MilkFirst["Milk: 200 + 50 = 250"]
+    MilkFirst --> DiscountLast["HalfPrice: 250 / 2 = 125"]
+    Choice -->|Milk last| DiscountFirst["HalfPrice: 200 / 2 = 100"]
+    DiscountFirst --> MilkLast["Milk: 100 + 50 = 150"]
+```
+
+The same features give different answers. The code also checks that two `Milk`
+wrappers charge twice: the pattern does not reject repeated extras for you.
+
+### C++ Class Diagram
+
+The hollow triangle points toward the base class. The filled diamond means
+ownership: each decorator owns one inner `Beverage` through `unique_ptr`.
+
+```mermaid
+classDiagram
+    Beverage <|-- Coffee
+    Beverage <|-- BeverageDecorator
+    BeverageDecorator <|-- Milk
+    BeverageDecorator <|-- Cinnamon
+    BeverageDecorator <|-- HalfPrice
+    BeverageDecorator "1" *-- "1" Beverage : owns inner_
+    class Beverage {
+        +cost() int
+        +description() string
+    }
+```
+
+`Beverage` is an abstract promise, not a second drink stored alongside `Coffee`.
+The inner drink may itself be a wrapper, which is how layers are combined.
+
+### C++ Sequence Diagram
+
+Read from top to bottom. Solid arrows call functions; dashed arrows return values.
+This traces the normal `main()` example after its objects have been constructed.
+
+```mermaid
+sequenceDiagram
+    participant Main as main()
+    participant Outer as Cinnamon
+    participant Middle as Milk
+    participant Inner as Coffee
+    Main->>Outer: cost()
+    Outer->>Middle: cost()
+    Middle->>Inner: cost()
+    Inner-->>Middle: 200
+    Middle-->>Outer: 250
+    Outer-->>Main: 270
+```
+
+Calls go toward the coffee; prices return toward `main()`. Each wrapper adds its
+part on the return path. This is why the outermost wrapper changes the price last.
+
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** reuse individual extras, choose combinations while the program runs,
-and avoid one class for every combination.
+**Benefits:** milk has one implementation that works around any beverage. Callers
+can assemble the requested extras while the program runs, without adding another
+class for each new combination.
 
-**Drawbacks:** many small objects and calls; wrapper order can be confusing; removing
-an inner layer may be awkward. Repeated or incompatible features need explicit checks.
+**Drawbacks:** the order and repeated layers need care. Half-price after milk costs
+125 cents; milk after half-price costs 150. Two milk wrappers charge twice. A long
+chain also takes more work to follow, and removing an inner layer can be awkward.
 
 **Use it when:** there are meaningful layers of behavior. A simple list of price
 options may be enough for a small billing calculation. Proxy mainly controls access;

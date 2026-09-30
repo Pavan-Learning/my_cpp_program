@@ -2,24 +2,26 @@
 
 ## 1. Definition
 
-**An immutable value is not changed after it is created. An operation that would
-edit it produces a new value instead.** Existing users can keep seeing the old value.
+**Immutability means keeping an existing value unchanged and returning a new value
+when a change is needed.** Readers of the old value still see the old contents.
 
 For example, adding ` reviewed` to a document version creates a new version containing
 `draft reviewed`, while the original still contains `draft`.
 
-A **functional core** is the part of a program that calculates results from supplied
-inputs without changing outside data or performing input/output. Other code handles
-necessary actions such as reading files and saving the chosen result.
+A **functional core** calculates results from the inputs it receives, without
+editing outside data or reading and writing files. Other code handles those outside
+actions. For the document example, producing revised text can be a calculation;
+saving that text to disk is a separate job.
 
 ## 2. The Problem It Solves
 
-If several parts share editable data, one part can change what another is reading.
-Understanding an answer then requires knowing who changed the value and when.
-Tests may even affect each other through shared changes.
+Suppose a preview and an editing tool share the same document text. The tool appends
+` reviewed`, and the preview suddenly sees new text too. To understand what the
+preview shows, we now have to know who last changed the shared document.
 
-Keeping old values unchanged makes results easier to follow. The new result is
-separate from the input instead of silently replacing its contents.
+Have `append()` return a new version instead. The original still says `draft`,
+and the revised version says `draft reviewed`. The caller chooses which to show or
+save. Nothing reading the original has its input changed behind its back.
 
 ## 3. Understand the Idea Step by Step
 
@@ -28,10 +30,10 @@ separate from the input instead of silently replacing its contents.
 3. Make transformations return new values.
 4. Let the caller decide whether to keep the old value, the new one, or both.
 
-An **alias** is another way to reach the same object, such as a second pointer.
-An **external side effect** is an observable change outside a calculation, such as
-editing a shared variable or writing a file. Avoiding those effects in the calculation
-makes it easier to check using only inputs and expected outputs.
+A second pointer to the same object is an **alias**. If either pointer can edit
+the shared text, both see the change. Such an outside change is a **side effect**,
+as is writing a file. Keeping those effects out of the calculation makes a test
+straightforward: supply an input and check the returned value.
 
 ### Picture: Keep the Old Version and Produce a New One
 
@@ -56,9 +58,9 @@ another pointer from changing shared data. All editable access must be considere
 A service builds a complete new configuration and makes it available to new requests.
 Requests already running keep their old version, so none sees half an update.
 
-Switching which version is current and keeping old versions alive still require safe
-coordination. Read-only values help readers, but do not automatically make every
-operation involving their pointers safe across threads.
+Each request keeps a complete version rather than seeing settings halfway through
+an update. The service must still safely publish the new version and keep old
+versions alive while requests use them. Read-only data does not do that work by itself.
 
 ## 5. Understand the C++ Example
 
@@ -76,13 +78,72 @@ The public operations do not offer an in-place text edit. A nonconst variable ca
 still be assigned a different whole `DocumentVersion`. The text-reading function
 returns a reference to existing text, so that reference cannot safely outlive its version.
 
+### C++ Flow Diagram
+
+Arrows show new values retained by the drawback function. Earlier versions are
+kept in the vector, not overwritten by later edits.
+
+```mermaid
+flowchart TD
+    First["Version 1: 1024 characters"] --> Second["append A: version 2 has 1025"]
+    Second --> Third["append B: version 3 has 1026"]
+    Third --> Retain["All three retained: 3075 characters"]
+    Retain --> Compare["Latest text alone is only 1026 characters"]
+```
+
+This implementation builds full strings. Structural sharing could reduce duplicate
+data, but it is not present here and would require a different storage design.
+
+### C++ Class Diagram
+
+The filled diamond means the object owns its string value. The dotted arrow means
+`append()` creates a new value of the same type, not a stored link to another version.
+
+```mermaid
+classDiagram
+    DocumentVersion *-- Text : owns text_
+    DocumentVersion ..> DocumentVersion : append returns new value
+    class DocumentVersion {
+        +text() string
+        +append(suffix) DocumentVersion
+    }
+    class Text["std::string"]
+```
+
+`text()` actually returns a const reference, and `append()` is a const method.
+The public operations do not edit an existing version's stored text.
+
+### C++ Sequence Diagram
+
+Solid arrows call; dashed arrows return results. The new value and original are
+different objects, and the old value is not changed by the append.
+
+```mermaid
+sequenceDiagram
+    participant Main as main()
+    participant Original as original DocumentVersion
+    participant Revised as revised DocumentVersion
+    Main->>Original: append(" reviewed")
+    Note over Original,Revised: Build new string draft reviewed
+    Original-->>Main: new DocumentVersion stored as revised
+    Main->>Original: text()
+    Original-->>Main: draft
+    Main->>Revised: text()
+    Revised-->>Main: draft reviewed
+```
+
+The result can be assigned to a variable, but the transformation itself leaves
+its input unchanged. Retaining every prior result has a storage cost.
+
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** predictable versions, simple snapshots, fewer surprises for shared
-readers, and calculations that are easier to test.
+**Benefits:** a reader can keep the original document while another uses the revised
+one. Tests check both values directly, without tracking hidden edits to shared text.
 
-**Drawbacks:** copying data and retaining old versions can consume time and memory.
-Sharing unchanged portions can reduce copying but introduces more complex storage rules.
+**Drawbacks:** keeping every version can keep many copies of the same data. The
+example retains strings of 1024, 1025, and 1026 characters, using 3075 characters
+for a latest version of only 1026. Sharing unchanged portions can reduce copying,
+but this simple implementation does not do that and such storage adds complexity.
 
 **Use it where helpful:** especially for shared values and calculations. Changing
 data privately inside one clear owner can be simpler and faster for some workloads.

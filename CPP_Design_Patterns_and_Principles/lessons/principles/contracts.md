@@ -2,9 +2,8 @@
 
 ## 1. Definition
 
-**State what an operation expects, what it promises, and which values are valid.**
-That agreement is a **contract**. It lets callers and implementations understand
-their responsibilities instead of guessing.
+**A contract says what callers must provide and what an operation promises in return.**
+It makes valid inputs, results, and failures clear instead of leaving callers to guess.
 
 **Fail fast** means reject bad input near where it arrives, before it causes a
 confusing later problem. **Strong types** give different meanings distinct types,
@@ -12,12 +11,13 @@ such as `Percentage` and `Money`, instead of treating all numbers as interchange
 
 ## 2. The Problem It Solves
 
-The number 150 might be a valid amount in cents but an invalid discount percentage.
-If everything is an unchecked integer, code can accept meaningless values or mix units.
-The mistake may appear much later as a believable but incorrect bill.
+Suppose billing receives the number 150. As an amount in cents, it may be fine.
+As a discount percentage in this application, it is invalid. A plain integer does
+not tell the calculation which meaning was intended or whether anyone checked it.
 
-Check values at meaningful entry points and store them in types that communicate
-their meaning. Later code should not have to repeatedly rediscover the same rules.
+Create a `Percentage` from the supplied rate. Its constructor accepts only 0 through
+100. Once it exists, later code can use it knowing that the rate passed that check.
+Bad input is rejected before it turns into a confusing bill.
 
 ## 3. Understand the Idea Step by Step
 
@@ -47,10 +47,10 @@ flowchart TD
 **Read it as a sentence:** a valid percentage enters the calculation; 101 does not
 silently become a normal discount value.
 
-Fail fast does not mean crash the whole service. Reject the bad operation and handle
-its error at the appropriate level. **Assertions**, checks intended to detect
-programmer mistakes, may be disabled in release builds; do not rely on them alone
-for required checks on untrusted input.
+Fail fast means rejecting the bad request promptly, not crashing the whole service.
+The caller can catch the error and explain it to the user. An **assertion** checks
+a programmer's assumption, but may be disabled in a release build. Required input
+validation must still run when assertions do not.
 
 ## 4. Real-World Scenario
 
@@ -58,8 +58,9 @@ A billing service receives a discount from a request. Creating a checked percent
 prevents negative or 150% discounts from reaching arithmetic. A separate money type
 can also prevent accidentally passing a percentage where an amount is expected.
 
-Types do not automatically decide rounding or prevent every numeric overflow.
-Those rules still need explicit definitions and tests appropriate to the business.
+A valid rate does not answer every billing question. For example, 25% of 999 cents
+is 249.75 cents. The program must say what to do with that fraction. The sample
+discards it; another business rule might require different rounding.
 
 ## 5. Understand the C++ Example
 
@@ -79,14 +80,68 @@ the input amount and uses `long long`, a larger integer type, for multiplication
 type must happen before multiplication; doing it after overflow is too late.
 The supported amount limit is part of this teaching example, not a universal money model.
 
+### C++ Flow Diagram
+
+Follow the repeated and reused percentage paths in the drawback function. Each
+amount is still checked by `of()`; only construction validations are counted here.
+
+```mermaid
+flowchart TD
+    Start["Apply 25 percent to three amounts of 100"] --> Repeat["Construct Percentage(25) for every item"]
+    Repeat --> Three["3 percentage validations; total 75"]
+    Start --> Reuse["Construct Percentage(25) once and reuse"]
+    Reuse --> One["1 percentage validation; total 75"]
+```
+
+Keeping a validated type avoids needless repeated work. It does not permit
+skipping validation of other inputs, such as each new money amount.
+
+### C++ Class Diagram
+
+Plus means public; minus means private. The constructor is the entry point that
+prevents out-of-range percentages from becoming usable objects.
+
+```mermaid
+classDiagram
+    class Percentage {
+        +Percentage(value)
+        +of(cents) int
+        -value_ int
+    }
+```
+
+`value_` must stay between 0 and 100. `of()` separately accepts amounts from 0
+through 1000000, multiplies using `long long`, and truncates the integer result.
+
+### C++ Sequence Diagram
+
+Time runs downward; solid arrows call, dashed arrows return. The constructor note
+shows the first validation, followed by the operation's separate amount check.
+
+```mermaid
+sequenceDiagram
+    participant Main as main()
+    participant Rate as Percentage
+    Main->>Rate: construct with 25
+    Note over Rate: Check percentage is in 0..100
+    Main->>Rate: of(999)
+    Note over Rate: Check amount, calculate 999 * 25 / 100
+    Rate-->>Main: 249
+```
+
+Integer division drops the fractional part; this is not rounding to the nearest
+cent. Constructing with 101 throws before an operation can use an invalid rate.
+
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** clearer units, errors nearer their causes, fewer invalid stored values,
-and precise boundaries to test.
+**Benefits:** `Percentage` says what the number means and prevents 101 from becoming
+a usable rate. The allowed endpoints and rounding rule give tests clear expectations.
 
-**Drawbacks:** unnecessary repeated checks add noise or cost. Too many poorly chosen
-types can make simple work awkward. Exceptions are not suitable for every runtime;
-some projects use explicit error results instead.
+**Drawbacks:** repeatedly rebuilding an already validated value repeats work. The
+drawback example constructs 25% three times, then shows the same calculation using
+one reused percentage. Each new amount still needs its own check. Extra types should
+clarify real meanings, and failure reporting must fit the project; exceptions are
+one choice, not a requirement of contracts.
 
 **Use checks where meaning enters:** then preserve the rules through valid operations.
 Silently changing bad input is only appropriate when that behavior is explicitly promised.

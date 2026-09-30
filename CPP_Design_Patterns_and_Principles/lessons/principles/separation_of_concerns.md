@@ -2,21 +2,23 @@
 
 ## 1. Definition
 
-**Keep different kinds of work separate enough that each can be understood, tested,
-and changed without dragging unrelated work along.** A **concern** means a kind of
-responsibility, such as reading input, calculating a price, or displaying an answer.
+**Separation of concerns means giving different kinds of work their own places.**
+A **concern** is a job such as reading input, calculating a price, or displaying
+the answer.
 
 For example, a shipping formula should not need to know whether the weight came
 from a website, a text file, or a terminal prompt.
 
 ## 2. The Problem It Solves
 
-One function may read text, calculate a price, write a database record, and print
-an answer. Testing the calculation then requires arranging unrelated input and output.
-Changing the displayed wording risks changing the formula by accident.
+Suppose one function asks for a parcel weight, converts the reply, calculates the
+fee, and prints it. A website wants the same fee calculation, but not the terminal
+prompt or printed message. Reusing the function means bringing along work it does
+not need.
 
-Separate the jobs and connect them explicitly. In a small program, separate functions
-are often enough; separation does not require services, folders, or classes for everything.
+Split it into three functions: read a weight from text, calculate from a number,
+and format the result. The terminal can use all three. A caller that already has
+a number can use the calculation directly. No extra framework is needed.
 
 ## 3. Understand the Idea Step by Step
 
@@ -25,9 +27,9 @@ are often enough; separation does not require services, folders, or classes for 
 3. Perform the calculation.
 4. Turn the result into whatever output the caller needs.
 
-**Parsing** means converting text according to a format, such as turning `"2"` into
-integer 2. **Domain rules** are the rules of the problem being solved, such as allowed
-parcel weights. **Formatting** means presenting an answer as text or another output form.
+Turning `"2"` into integer 2 is **parsing**. Checking the allowed weight and applying
+the shipping formula are **domain rules**, the rules of this problem. Turning 400
+into `400 cents` is **formatting**. Each step has a different reason to change.
 
 ### Picture: One Job per Stage
 
@@ -52,8 +54,8 @@ that expects only an integer, even though a human can guess what was intended.
 A booking-price calculation is used by a website, phone app, and support console.
 Each can collect input and show results differently while sharing the same pricing function.
 
-One application function still connects the stages and decides what to do after
-failure. Separating work does not remove the need to coordinate the overall request.
+Each application still connects its own steps and decides how to show an error.
+The shared price calculation does not need to know which screen will display it.
 
 ## 5. Understand the C++ Example
 
@@ -72,13 +74,75 @@ The formula does not read terminal input or print anything. Another caller can u
 it directly with a number. Parsing only uses the input text during the call and
 does not save a reference that might later point to destroyed text.
 
+### C++ Flow Diagram
+
+Arrows follow the unnecessary conversions in `demonstrate_drawback()`.
+
+```mermaid
+flowchart TD
+    Input["Text: 2"] --> First["Parse once: int 2"]
+    First --> Text["Unneeded conversion back to text: 2"]
+    Text --> Second["Parse again: int 2"]
+    Second --> Rule["shipping_cents(2): 400"]
+    Rule --> Output["display_price(400): 400 cents"]
+```
+
+The focused version skips the middle text conversion and second parse. Both
+produce the same output, but only one respects a simple typed boundary between helpers.
+
+### C++ Class Diagram
+
+There are no custom classes. Each box is explicitly marked `function`; the dotted
+arrows describe data passed by the caller, not calls between these helpers.
+
+```mermaid
+classDiagram
+    Parse ..> Rule : caller passes int weight
+    Rule ..> Display : caller passes int cents
+    class Parse["parse_weight(text)"] {
+        <<function>>
+    }
+    class Rule["shipping_cents(weight)"] {
+        <<function>>
+    }
+    class Display["display_price(cents)"] {
+        <<function>>
+    }
+```
+
+Parsing checks integer syntax, the rule checks the allowed weight range, and
+display formats a result. One helper does not need to know another's text format.
+
+### C++ Sequence Diagram
+
+Solid arrows call; dashed arrows return. `main()` combines the helpers, even though
+the source writes the calls as one nested expression.
+
+```mermaid
+sequenceDiagram
+    participant Main as main()
+    participant Parse as parse_weight()
+    participant Rule as shipping_cents()
+    participant Display as display_price()
+    Main->>Parse: parse_weight("2")
+    Parse-->>Main: int 2
+    Main->>Rule: shipping_cents(2)
+    Rule-->>Main: int 400
+    Main->>Display: display_price(400)
+    Display-->>Main: 400 cents
+```
+
+The order follows data dependencies: the weight must exist before the fee can be
+calculated. Invalid text such as `2kg` fails at parsing, before the business rule.
+
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** reusable calculations, clearer failures, focused tests, and changes
-to display wording that do not require changing business rules.
+**Benefits:** test the price with a number, test the parser with text, and change
+the displayed wording without editing the formula. Each caller uses the parts it needs.
 
-**Drawbacks:** pointless layers can make a short task hard to follow. Passing and
-converting data between too many helpers can add work without useful independence.
+**Drawbacks:** unnecessary boundaries add work. The drawback example parses the
+weight, turns it back into text, then parses it again before calculating. Passing
+the integer directly is clearer. Separate different jobs, not every small step.
 
 **Use the smallest useful split:** separate genuinely different jobs, not every
 line. Single Responsibility examines a part's reasons to change; separation of

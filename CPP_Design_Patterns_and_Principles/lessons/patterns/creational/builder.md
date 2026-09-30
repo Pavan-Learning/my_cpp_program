@@ -2,9 +2,8 @@
 
 ## 1. Definition
 
-**Builder prepares an object step by step and returns the finished object when its
-required information is ready.** The builder holds unfinished choices; the finished
-object is what the rest of the program uses.
+**Builder lets you choose an object's settings one step at a time, then ask for
+the finished object.**
 
 Think of filling out an order form. You may choose the address, delivery speed, and
 optional extras in separate steps. An unfinished form is acceptable while filling
@@ -12,12 +11,13 @@ it out, but it should not become a usable order without its required information
 
 ## 2. The Problem It Solves
 
-A long creation call such as `Request("/orders", 500, true)` can be hard to read.
-What do `500` and `true` mean? Several optional settings create many combinations.
-Allowing everyone to modify an already usable object can also leave it half configured.
+A call such as `Request("/orders", 500, true)` makes you stop and look up the
+arguments. Is `500` a timeout? What does `true` turn on? More options make the call
+harder to understand, especially when most callers only want to change a few.
 
-A builder gives each choice a name and provides a final place to check the complete
-set of choices before returning an object.
+With a builder, the choices have names: set the URL, set the timeout, enable
+authentication. Then call `build()`. In this example, that final step checks the
+settings before returning a request anyone can use.
 
 ## 3. Understand the Idea Step by Step
 
@@ -45,10 +45,12 @@ flowchart TD
 **Read it as a sentence:** choose settings, check them together, then either receive
 a complete object or an error.
 
-A **director** is an optional helper that follows a reusable building recipe.
-A **fluent interface** allows calls such as `.url(...).timeout(...)` because each
-setting function returns the builder again. Chained function calls alone are not
-the key idea; keeping unfinished choices separate from the finished object is.
+If the same settings are needed often, a helper can apply that recipe for us.
+Pattern books call this helper a **director**. The health-check example below uses one.
+
+Calls such as `.url(...).timeout(...)` can be chained because each returns the same
+builder. This is called a **fluent interface**. The important part is still the
+finished request, not how many calls fit on one line.
 
 ## 4. Real-World Scenario
 
@@ -56,8 +58,8 @@ A travel planner collects destinations, dates, and accommodation choices. Before
 producing a bookable itinerary, it checks that the return date follows departure.
 A business-trip recipe could fill in common defaults while still allowing changes.
 
-The builder checks the plan's settings. It cannot promise that a hotel still has
-rooms when booking happens later; checking outside availability is separate work.
+The result is a complete travel plan. Booking it is a later job: a valid plan does
+not guarantee that the chosen hotel still has rooms.
 
 ## 5. Understand the C++ Example
 
@@ -78,14 +80,80 @@ into the result. Reusing the builder therefore keeps previous options. Do not ke
 a reference to a temporary builder after the statement that created it has ended:
 that builder no longer exists.
 
+### C++ Flow Diagram
+
+Arrows show the reuse path in `demonstrate_drawback()`. A built request and the
+builder's saved settings are different objects.
+
+```mermaid
+flowchart TD
+    Configure["Builder: /private, timeout 50, authenticated"] --> First["build(): create private_request"]
+    First --> Change["Set only URL to /public"]
+    Change --> Second["build(): public_request still authenticated, timeout 50"]
+    Second --> Compare["Fresh builder: not authenticated, timeout 1000"]
+```
+
+`build()` is `const`: it reads the settings without resetting them. Reusing the
+builder does not change the previously built request, but can carry old choices forward.
+
+### C++ Class Diagram
+
+Dotted arrows mean temporary use or creation. `Builder` is the nested
+`Request::Builder` class; nesting does not mean each request contains a builder.
+
+```mermaid
+classDiagram
+    RequestDirector ..> Builder : uses health-check recipe
+    Builder ..> Request : creates validated value
+    class Builder {
+        +url(value) Builder
+        +timeout(value) Builder
+        +authenticate() Builder
+        +build() Request
+    }
+    class Request {
+        +url() string
+        +timeout() int
+        +authenticated() bool
+    }
+```
+
+Setter methods actually return `Builder&`, allowing chained calls to the same
+builder. The diagram omits private fields and the private `Request` constructor.
+
+### C++ Sequence Diagram
+
+Read downward through `health_check()`. Solid arrows are calls; dashed arrows are
+returns. The director supplies a recipe rather than storing a permanent builder.
+
+```mermaid
+sequenceDiagram
+    participant Main as main()
+    participant Director as RequestDirector
+    participant Builder as Request::Builder
+    Main->>Director: health_check("/health")
+    Note over Director,Builder: Construct a fresh local builder
+    Director->>Builder: url("/health")
+    Director->>Builder: timeout(200)
+    Director->>Builder: build()
+    Note over Builder: Reject empty URL or nonpositive timeout
+    Builder-->>Director: Request with timeout 200
+    Director-->>Main: health request
+```
+
+The final request owns its settings. An invalid builder throws instead of handing
+out a partly valid request.
+
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** readable setting names, one final validation point, reusable recipes,
-and no usable object with missing required settings.
+**Benefits:** callers can see what each setting means and leave defaults alone.
+The final check keeps an empty URL or invalid timeout out of the finished request.
+A recipe saves repeating the same setup for every health check.
 
-**Drawbacks:** another class and some duplicated fields to maintain. Forgotten
-settings may only be detected when the program runs. A reused builder may keep an
-option the caller meant to clear.
+**Drawbacks:** the builder adds another class and keeps its own copy of the settings.
+In the drawback example, changing a private request's URL to `/public` does not
+clear authentication or the old timeout. Use a fresh builder when you want fresh
+defaults. Missing settings are caught at `build()`, not while compiling.
 
 **Use it when:** construction has enough options or combined rules to be confusing.
 For an object with two obvious values, a normal constructor is usually simpler.

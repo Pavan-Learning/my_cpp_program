@@ -2,20 +2,23 @@
 
 ## 1. Definition
 
-**Interpreter represents the rules of a small language as objects and gives those
-objects a way to work out an answer.**
+**Interpreter builds a rule from small objects, then asks them to work out its answer.**
 
 For example, the rule "signed in AND paid" is true only when both facts are true.
 One object reads "signed in," another reads "paid," and an AND object combines them.
 
 ## 2. The Problem It Solves
 
-Hardcoding every possible rule combination can produce many repeated conditions.
-Letting users enter unrestricted programming code is often far more powerful than
-the application needs and can be unsafe.
+Suppose one feature requires "signed in AND paid," while another combines a
+different pair of facts. We could write a separate C++ condition for every rule.
+As the combinations grow, we keep repeating the same operations with different names.
 
-A deliberately small rule language gives users the required choices while the
-application controls which operations exist and what they mean.
+Instead, make an object that reads a named fact and another that combines two
+answers with AND. Build a rule by connecting those objects. We can reuse the rule
+for different users by supplying their current facts.
+
+These objects form a small language with only the operations we choose to support.
+The sample builds rules directly in C++; it does not yet accept typed rule text.
 
 ## 3. Understand the Idea Step by Step
 
@@ -24,10 +27,10 @@ application controls which operations exist and what they mean.
 3. Supply current facts, such as `signed_in = true` and `paid = false`.
 4. Ask the rule for its result.
 
-An **expression** is something that can produce a value. **Evaluate** means work out
-that value. The **context** is the collection of current facts used in that calculation.
-The nested expression objects form a **tree**, with combined expressions above the
-smaller expressions they use.
+`Variable("paid")` is an **expression**: something that produces a value. To
+**evaluate** it means to find its answer using the current facts, called the
+**context**. An AND expression asks its two smaller expressions for answers and
+combines them. Nesting those objects forms an expression tree.
 
 ### Picture: Work Out an AND Rule
 
@@ -54,9 +57,9 @@ A feature-control service enables a paid feature for users who are signed in and
 subscribed. It can reuse the same rule for many users by changing the supplied facts.
 An OR operation could allow either of two qualifying conditions.
 
-A real service needs limits on rule size and clear handling of unknown facts. A
-large language usually deserves an existing parser and evaluator rather than an
-ever-growing set of hand-written classes.
+The rule stays the same while the user's facts change. If the subscription fact
+is missing, the service must decide whether to report an error or use a default;
+missing information is not automatically the same as false.
 
 ## 5. Understand the C++ Example
 
@@ -75,13 +78,80 @@ Open [interpreter.cpp](../../../patterns/behavioral/interpreter.cpp).
 Each AND object owns its children, so they are cleaned up with the tree. The supplied
 context is used during evaluation without being owned by the expression.
 
+### C++ Flow Diagram
+
+Follow the decisions in `And::evaluate()`. A missing variable throws when its
+lookup is reached; it is not automatically treated as false.
+
+```mermaid
+flowchart TD
+    Left["Look up signed_in"] --> Decision{"Value true?"}
+    Decision -->|No| False["Return false; do not read paid"]
+    Decision -->|Yes| Right["Look up paid"]
+    Right --> Result["Return paid value"]
+```
+
+The drawback checks evaluate an all-true tree twice, performing four lookups.
+Creating one `Variable("signed_in AND paid")` instead looks for that entire name;
+the object constructor does not parse rule text.
+
+### C++ Class Diagram
+
+Triangles point to the shared interface. The diamond means `And` owns two child
+expressions. A dotted arrow is temporary use of the supplied variable map.
+
+```mermaid
+classDiagram
+    Expression <|-- Variable
+    Expression <|-- CountedVariable
+    Expression <|-- And
+    And "1" *-- "2" Expression : owns left_ and right_
+    Variable ..> Context : looks up name_
+    CountedVariable ..> Context : looks up and counts
+    class Context["Context: map of names to bool"]
+```
+
+`Context` is an alias for a standard map, not a custom class with virtual methods.
+`CountedVariable` also borrows a counter to make repeated work observable.
+
+### C++ Sequence Diagram
+
+Read downward; solid arrows call, dashed arrows return. This is the all-true
+case, so both child expressions are evaluated in left-to-right order.
+
+```mermaid
+sequenceDiagram
+    participant Main as main()
+    participant Rule as And
+    participant Left as Variable signed_in
+    participant Right as Variable paid
+    participant Values as Context
+    Main->>Rule: evaluate(context)
+    Rule->>Left: evaluate(context)
+    Left->>Values: at("signed_in")
+    Values-->>Left: true
+    Left-->>Rule: true
+    Rule->>Right: evaluate(context)
+    Right->>Values: at("paid")
+    Values-->>Right: true
+    Right-->>Rule: true
+    Rule-->>Main: true
+```
+
+If the left result were false, the right-hand calls would not happen. No evaluated
+answer is cached between calls in this implementation.
+
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** rules can be combined and reused; each operation has a clear meaning;
-small pieces can be checked independently.
+**Benefits:** we can reuse a rule with different facts and build larger rules from
+small tested pieces. The meaning of AND is written once instead of repeated for
+every pair of facts.
 
-**Drawbacks:** many objects for large rules, repeated nested calls, and extra work
-for reading input text, reporting errors, and limiting resource use.
+**Drawbacks:** a large rule needs many objects and calls. This example rereads the
+facts each time; its counting check shows four lookups for two all-true evaluations.
+It also has no parser: putting `signed_in AND paid` in a variable name just looks
+for that entire name. Reading rule text, reporting mistakes, and limiting very large
+rules are additional work. For a larger language, use a suitable existing engine.
 
 **Use it when:** a small rule language is genuinely needed. A few fixed rules may
 be clearer as ordinary C++ conditions.

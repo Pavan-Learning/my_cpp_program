@@ -2,21 +2,23 @@
 
 ## 1. Definition
 
-**Singleton limits a class to one shared object within a chosen scope and provides
-one known way to access it.** In this example, that scope is the running program.
-An **instance** means an actual object created from a class, not the class itself.
+**Singleton gives different parts of a program access to the same object and
+prevents ordinary callers from making another one.** Here, "one" means one in
+this running program. An **instance** is another word for an object.
 
 Imagine several parts of a program reading one fixed set of application settings.
 They all ask for the same settings object instead of creating their own copies.
 
 ## 2. The Problem It Solves
 
-Sometimes several independently created objects would disagree about information
-that should be shared. Limiting creation can prevent those competing copies.
+Suppose the title bar and a report both need the application settings. If each
+creates its own settings object, there are two separate places to hold information
+that was meant to be shared.
 
-However, needing one object does not always require Singleton. You can create one
-object in `main()` and pass it to the code that needs it. Singleton additionally
-makes that object reachable through a common access function throughout the program.
+One solution is to create a settings object in `main()` and pass it to both users.
+Singleton takes a different route: both call `Settings::instance()`, and that
+function returns the same object every time. This is convenient, but it also means
+the callers cannot easily choose different settings.
 
 ## 3. Understand the Idea Step by Step
 
@@ -43,10 +45,9 @@ flowchart TD
 **Read it as a sentence:** A and B ask the same function and receive access to the
 same object, not two equal-looking copies.
 
-Creating the object safely is different from changing it safely. If several threads
-change shared data, they still need rules that prevent conflicting updates. A
-**thread** is a separately running sequence of work within the program. One object
-in one program also does not mean one object across several programs or machines.
+Sharing one object does not make every use of it safe. Two **threads**, meaning two
+sequences of work running in the program, can still try to change it at the same
+time. The example avoids that problem by making the settings read-only.
 
 ## 4. Real-World Scenario
 
@@ -75,14 +76,70 @@ first initialization when threads arrive together. That does not protect later
 changes to an ordinary field. At shutdown, other objects must not use these settings
 after the settings object has already been destroyed.
 
+### C++ Flow Diagram
+
+Follow the two access paths. Arrows mean "uses this configuration," not threads.
+
+```mermaid
+flowchart TD
+    First["First call to title_using_singleton()"] --> Global["One Settings: Pattern demo"]
+    Second["Second call to title_using_singleton()"] --> Global
+    Global --> Same["Both return Welcome to Pattern demo"]
+    Supplied["title_using_supplied_name(name)"] --> Separate["Shop and Editor can use different names"]
+```
+
+The drawback is fixed global configuration, not a race in this immutable sample.
+Supplying a value makes the dependency visible and independently configurable.
+
+### C++ Class Diagram
+
+There is one application class. `$` marks a static method: callers do not need an
+existing `Settings` object to call `instance()`. Plus means public; minus means private.
+
+```mermaid
+classDiagram
+    class Settings {
+        +instance() SettingsRef$
+        +application_name() string
+        -Settings()
+        -name_ string
+    }
+```
+
+`SettingsRef` is diagram shorthand for `const Settings&`, not a source type.
+The private constructor and deleted copy operations prevent ordinary client copies.
+
+### C++ Sequence Diagram
+
+Time runs downward. Solid arrows call; dashed arrows return a reference or value.
+
+```mermaid
+sequenceDiagram
+    participant Main as main()
+    participant Access as Settings::instance()
+    participant Object as static const Settings
+    Main->>Access: first access
+    Note over Access,Object: Construct settings once on first successful access
+    Access-->>Main: reference to settings
+    Main->>Access: second access
+    Access-->>Main: reference to the same settings
+    Main->>Object: application_name()
+    Object-->>Main: Pattern demo
+```
+
+The accessor and stored object are separate lanes to explain the operation, not
+two `Settings` instances. The program checks that both references have the same address.
+
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** controlled creation, one convenient access point, and creation delayed
-until the first request.
+**Benefits:** callers know where to get the settings, they all reach the same
+object, and the object is not created until the first request.
 
-**Drawbacks:** shared state can make tests affect one another. Code may quietly
-depend on the global object. Different configurations and shutdown cleanup become
-harder. Libraries and plug-ins can also complicate whether there really is one copy.
+**Drawbacks:** every caller gets the same choice, even when a test needs another
+one. The example cannot give one caller the name `Shop` and another `Editor` through
+the Singleton; passing the name can. A function can also use the Singleton without
+showing that need in its parameters. If shared values can change, one test may leave
+them changed for the next. Callers must also stop using the object before it is destroyed.
 
 **Use it carefully:** prefer a read-only shared object when global access is truly
 needed. Often, creating one object in `main()` and passing it to users is clearer.

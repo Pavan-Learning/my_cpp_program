@@ -2,8 +2,8 @@
 
 ## 1. Definition
 
-**A replacement object must keep the promises of the type it replaces.** That is
-the Liskov Substitution Principle, shortened to LSP.
+**Liskov Substitution Principle means that a replacement must behave as the caller
+was promised.** It is usually shortened to LSP.
 
 In C++, a **derived class** extends another class, called the **base class**. Code
 using the base type should still work correctly when given a derived object.
@@ -11,12 +11,15 @@ Being accepted by the compiler does not prove that the behavior is correct.
 
 ## 2. The Problem It Solves
 
-Suppose a rectangle lets callers set width and height independently. A square class
-inherits those operations but changes both sides whenever either one is set.
-Now code expecting independent changes gets a surprising result.
+Suppose code sets a rectangle's width to 4, then its height to 5. It expects an area
+of 20 because changing height is not supposed to change width.
 
-The problem is not whether a square is mathematically a rectangle. The problem is
-whether this software square keeps the promises of this changeable rectangle type.
+Now pass it a square that inherits the rectangle's operations. To remain square,
+it changes both sides whenever either is set. The same calls leave both sides at 5,
+giving an area of 25. The code compiles, but the caller's expectation is broken.
+
+The question is not whether a square is a rectangle in mathematics. It is whether
+this square can keep this software rectangle's promise about changing dimensions.
 
 ## 3. Understand the Idea Step by Step
 
@@ -25,10 +28,16 @@ whether this software square keeps the promises of this changeable rectangle typ
 3. Check effects on other data and what errors can occur.
 4. If the promises differ, change the shared interface or stop using that inheritance relationship.
 
-A **contract** is the collection of promises. A **precondition** is a requirement
-before a call; replacements must not demand more. A **postcondition** is a promised
-result; replacements must not deliver less. An **invariant** is a rule that remains
-true during normal use, such as a balance not becoming negative.
+These promises are called a **contract**. It covers three useful questions:
+
+- What may the caller pass in? These are **preconditions**; a replacement must not
+    reject inputs the original promise accepts.
+- What must be true afterward? These are **postconditions**; here, setting height
+    must leave the earlier width alone.
+- What must remain true during normal use? These are **invariants**, such as the
+    rules for valid dimensions.
+
+Matching method names is not enough. The behavior must match too.
 
 ### Picture: Same Calls, One Broken Promise
 
@@ -55,8 +64,9 @@ A storage interface promises it can save valid documents. A read-only store cann
 keep that promise by rejecting every save as unsupported, unless such rejection
 was explicitly allowed by the original contract.
 
-Give read-only users an interface that promises reading instead. Do not weaken all
-promises until every implementation qualifies; callers still need useful guarantees.
+Give reading code a read-only interface. A writable store can support an additional
+save operation, but a read-only store should not pretend to support it. The shared
+promise should be something callers can genuinely rely on.
 
 ## 5. Understand the C++ Example
 
@@ -75,13 +85,77 @@ The program passes its checks because it detects the old fault and confirms the
 new design. It uses small positive dimensions to focus on replacement behavior;
 production geometry needs agreed rules for other inputs too.
 
+### C++ Flow Diagram
+
+Arrows follow the intentionally broken `before::Square` through
+`before::rectangle_contract()`. Both setters change both dimensions.
+
+```mermaid
+flowchart TD
+    Width["width(4): width 4, height 4"] --> Height["height(5): width 5, height 5"]
+    Height --> Area["area(): 25"]
+    Area --> Compare["Expected independent dimensions: 4 * 5 = 20"]
+    Compare --> Fail["Contract check returns false"]
+```
+
+The arithmetic is correct for a square, but the caller's promised behavior is
+broken. The corrected common interface drops independently mutable dimensions.
+
+### C++ Class Diagram
+
+Triangles mean inheritance. Namespace labels separate the broken hierarchy from
+the corrected one; there is no relationship between the two versions.
+
+```mermaid
+classDiagram
+    BeforeRectangle <|-- BeforeSquare
+    Shape <|-- Rectangle
+    Shape <|-- Square
+    class BeforeRectangle["before::Rectangle"]
+    class BeforeSquare["before::Square"]
+    class Shape["after::Shape"] {
+        +area() int
+    }
+    class Rectangle["after::Rectangle"]
+    class Square["after::Square"]
+```
+
+The corrected square is a sibling of the rectangle, not its subclass. Both can
+promise area, but a caller needing rectangle-specific resizing needs another operation.
+
+### C++ Sequence Diagram
+
+Solid arrows call; dashed arrows return. `inspect()` only uses the shared read-only
+promise, so both corrected shapes can satisfy the same caller.
+
+```mermaid
+sequenceDiagram
+    participant Main as main()
+    participant Inspect as after::inspect()
+    participant Rectangle as after::Rectangle 4x5
+    participant Square as after::Square side 5
+    Main->>Inspect: inspect(rectangle)
+    Inspect->>Rectangle: area()
+    Rectangle-->>Inspect: 20
+    Inspect-->>Main: 20
+    Main->>Inspect: inspect(square)
+    Inspect->>Square: area()
+    Square-->>Inspect: 25
+    Inspect-->>Main: 25
+```
+
+Different results are allowed for different shapes. Substitution requires keeping
+the interface's promises, not returning the same number for every object.
+
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** callers can trust common types, shared tests become useful, and code
-needs fewer special cases for surprising replacements.
+**Benefits:** code using `Shape::area()` can trust both shapes without special
+checks for a square. Tests can check the same shared promise across implementations.
 
-**Drawbacks:** complete promises take thought to define and test. The honest shared
-interface may offer fewer operations than originally hoped.
+**Drawbacks:** deciding what to promise takes thought. The corrected `Shape` can
+answer area questions, but it cannot promise independently changeable width and
+height for every shape. Some callers will need a more specific operation. A smaller,
+honest interface is useful, but it may offer less than the original design hoped for.
 
 **Use it whenever:** types claim they can replace one another. When they cannot,
 using one object as a part inside another is often clearer than inheritance.

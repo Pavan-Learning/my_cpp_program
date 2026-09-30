@@ -5,13 +5,16 @@
 Start with these standalone definitions and deeper explanations. Each lesson gives
 a practical scenario before walking through the before-and-after C++ design.
 
-| Topic | Standalone lesson |
-| --- | --- |
-| Single Responsibility | [Concept-first SRP lesson](../lessons/solid/srp.md) |
-| Open/Closed | [Concept-first OCP lesson](../lessons/solid/ocp.md) |
-| Liskov Substitution | [Concept-first LSP lesson](../lessons/solid/lsp.md) |
-| Interface Segregation | [Concept-first ISP lesson](../lessons/solid/isp.md) |
-| Dependency Inversion | [Concept-first DIP lesson](../lessons/solid/dip.md) |
+Each diagram link opens the **flow diagram**, followed immediately by the **class**
+and **sequence diagrams**, with explanations tied to that C++ program.
+
+| Topic | Standalone lesson | C++ diagrams |
+| --- | --- | --- |
+| Single Responsibility | [Lesson](../lessons/solid/srp.md) | [Flow, class, sequence](../lessons/solid/srp.md#c-flow-diagram) |
+| Open/Closed | [Lesson](../lessons/solid/ocp.md) | [Flow, class, sequence](../lessons/solid/ocp.md#c-flow-diagram) |
+| Liskov Substitution | [Lesson](../lessons/solid/lsp.md) | [Flow, class, sequence](../lessons/solid/lsp.md#c-flow-diagram) |
+| Interface Segregation | [Lesson](../lessons/solid/isp.md) | [Flow, class, sequence](../lessons/solid/isp.md#c-flow-diagram) |
+| Dependency Inversion | [Lesson](../lessons/solid/dip.md) | [Flow, class, sequence](../lessons/solid/dip.md#c-flow-diagram) |
 
 See the [complete lesson index](../lessons/README.md) for patterns and other principles.
 The sections below preserve additional contract discussions and implementation notes.

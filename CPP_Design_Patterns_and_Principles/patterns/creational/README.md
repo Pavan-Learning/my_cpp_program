@@ -6,13 +6,16 @@ Start with a standalone lesson below. Each explains the definition and underlyin
 idea, gives a real-world scenario, and only then walks through the C++ example.
 The sections later in this file retain additional implementation notes and diagrams.
 
-| Topic | Standalone lesson |
-| --- | --- |
-| Factory Method | [Definition, explanation, scenario, and C++ walkthrough](../../lessons/patterns/creational/factory_method.md) |
-| Abstract Factory | [Definition, explanation, scenario, and C++ walkthrough](../../lessons/patterns/creational/abstract_factory.md) |
-| Builder | [Definition, explanation, scenario, and C++ walkthrough](../../lessons/patterns/creational/builder.md) |
-| Prototype | [Definition, explanation, scenario, and C++ walkthrough](../../lessons/patterns/creational/prototype.md) |
-| Singleton | [Definition, explanation, scenario, and C++ walkthrough](../../lessons/patterns/creational/singleton.md) |
+Each diagram link opens the **flow diagram**, followed immediately by the **class**
+and **sequence diagrams**, with explanations tied to that C++ program.
+
+| Topic | Standalone lesson | C++ diagrams |
+| --- | --- | --- |
+| Factory Method | [Lesson](../../lessons/patterns/creational/factory_method.md) | [Flow, class, sequence](../../lessons/patterns/creational/factory_method.md#c-flow-diagram) |
+| Abstract Factory | [Lesson](../../lessons/patterns/creational/abstract_factory.md) | [Flow, class, sequence](../../lessons/patterns/creational/abstract_factory.md#c-flow-diagram) |
+| Builder | [Lesson](../../lessons/patterns/creational/builder.md) | [Flow, class, sequence](../../lessons/patterns/creational/builder.md#c-flow-diagram) |
+| Prototype | [Lesson](../../lessons/patterns/creational/prototype.md) | [Flow, class, sequence](../../lessons/patterns/creational/prototype.md#c-flow-diagram) |
+| Singleton | [Lesson](../../lessons/patterns/creational/singleton.md) | [Flow, class, sequence](../../lessons/patterns/creational/singleton.md#c-flow-diagram) |
 
 See the [complete lesson index](../../lessons/README.md) for the other categories.
 

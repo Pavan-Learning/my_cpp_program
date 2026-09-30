@@ -5,22 +5,26 @@
 Each standalone lesson begins with the principle's definition and deeper reasoning,
 then a real-world scenario, and finally a numbered walkthrough of its C++ example.
 
-| Topic | Standalone lesson |
-| --- | --- |
-| DRY | [Concept-first DRY lesson](../lessons/principles/dry.md) |
-| KISS | [Concept-first KISS lesson](../lessons/principles/kiss.md) |
-| YAGNI | [Concept-first YAGNI lesson](../lessons/principles/yagni.md) |
-| Separation of Concerns | [Concept-first separation lesson](../lessons/principles/separation_of_concerns.md) |
-| Cohesion and Coupling | [Concept-first cohesion and coupling lesson](../lessons/principles/cohesion_and_coupling.md) |
-| Encapsulation | [Concept-first encapsulation lesson](../lessons/principles/encapsulation.md) |
-| Composition Over Inheritance | [Concept-first composition lesson](../lessons/principles/composition.md) |
-| Programming to Interfaces | [Concept-first interfaces lesson](../lessons/principles/interfaces.md) |
-| Law of Demeter | [Concept-first Law of Demeter lesson](../lessons/principles/law_of_demeter.md) |
-| Dependency Injection | [Concept-first DI lesson](../lessons/principles/dependency_injection.md) |
-| Immutability | [Concept-first immutability lesson](../lessons/principles/immutability.md) |
-| Contracts and Strong Types | [Concept-first contracts lesson](../lessons/principles/contracts.md) |
-| RAII and Ownership | [Concept-first ownership lesson](../lessons/principles/raii_and_ownership.md) |
-| Value Semantics and Rule of Zero | [Concept-first value-semantics lesson](../lessons/principles/value_semantics.md) |
+Each diagram link opens the **flow diagram**, followed immediately by the **class**
+and **sequence diagrams**, with explanations tied to that C++ program. Examples
+without custom classes use clearly labeled function and data boxes in the class view.
+
+| Topic | Standalone lesson | C++ diagrams |
+| --- | --- | --- |
+| DRY | [Lesson](../lessons/principles/dry.md) | [Flow, class, sequence](../lessons/principles/dry.md#c-flow-diagram) |
+| KISS | [Lesson](../lessons/principles/kiss.md) | [Flow, class, sequence](../lessons/principles/kiss.md#c-flow-diagram) |
+| YAGNI | [Lesson](../lessons/principles/yagni.md) | [Flow, class, sequence](../lessons/principles/yagni.md#c-flow-diagram) |
+| Separation of Concerns | [Lesson](../lessons/principles/separation_of_concerns.md) | [Flow, class, sequence](../lessons/principles/separation_of_concerns.md#c-flow-diagram) |
+| Cohesion and Coupling | [Lesson](../lessons/principles/cohesion_and_coupling.md) | [Flow, class, sequence](../lessons/principles/cohesion_and_coupling.md#c-flow-diagram) |
+| Encapsulation | [Lesson](../lessons/principles/encapsulation.md) | [Flow, class, sequence](../lessons/principles/encapsulation.md#c-flow-diagram) |
+| Composition Over Inheritance | [Lesson](../lessons/principles/composition.md) | [Flow, class, sequence](../lessons/principles/composition.md#c-flow-diagram) |
+| Programming to Interfaces | [Lesson](../lessons/principles/interfaces.md) | [Flow, class, sequence](../lessons/principles/interfaces.md#c-flow-diagram) |
+| Law of Demeter | [Lesson](../lessons/principles/law_of_demeter.md) | [Flow, class, sequence](../lessons/principles/law_of_demeter.md#c-flow-diagram) |
+| Dependency Injection | [Lesson](../lessons/principles/dependency_injection.md) | [Flow, class, sequence](../lessons/principles/dependency_injection.md#c-flow-diagram) |
+| Immutability | [Lesson](../lessons/principles/immutability.md) | [Flow, class, sequence](../lessons/principles/immutability.md#c-flow-diagram) |
+| Contracts and Strong Types | [Lesson](../lessons/principles/contracts.md) | [Flow, class, sequence](../lessons/principles/contracts.md#c-flow-diagram) |
+| RAII and Ownership | [Lesson](../lessons/principles/raii_and_ownership.md) | [Flow, class, sequence](../lessons/principles/raii_and_ownership.md#c-flow-diagram) |
+| Value Semantics and Rule of Zero | [Lesson](../lessons/principles/value_semantics.md) | [Flow, class, sequence](../lessons/principles/value_semantics.md#c-flow-diagram) |
 
 See the [complete lesson index](../lessons/README.md). The material below retains
 additional technical details, related principles, and discussions of conflicting advice.

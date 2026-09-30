@@ -2,8 +2,8 @@
 
 ## 1. Definition
 
-**Chain of Responsibility passes a request through a series of objects. Each object
-decides whether to deal with it, reject it, or pass it to the next one.**
+**Chain of Responsibility lets objects handle a request one after another, with
+each object deciding whether to stop or pass it on.**
 
 Imagine an online request that must first prove the user is signed in, then check
 that the user has not exceeded a usage limit. A failed check stops the request.
@@ -11,12 +11,14 @@ Each object performing a step is called a **handler**.
 
 ## 2. The Problem It Solves
 
-Putting all checks into every place that sends requests repeats the rules. One
-caller may forget a check or use a different order. A single giant checking function
-can also become difficult to change when different requests need different steps.
+Suppose every request must come from a signed-in user who has some quota left.
+If every caller writes both checks, a new caller might forget quota or check it
+first. Adding another rule means updating all those callers.
 
-Put each check in its own handler and connect the handlers in the required order.
-The sender only needs to submit the request to the beginning of the chain.
+Give each check its own object and connect the objects in order. The caller sends
+the request to the first one. Authentication either rejects it or passes it to
+quota. Quota either rejects it or lets it continue. The caller no longer arranges
+the checks itself.
 
 ## 3. Understand the Idea Step by Step
 
@@ -26,9 +28,10 @@ The sender only needs to submit the request to the beginning of the chain.
 4. Otherwise it passes the request to the next handler.
 5. Define what happens when there is no next handler.
 
-There are two common versions. An approval chain stops when someone can approve.
-A checking chain continues only while every check passes. Do not confuse these
-rules: reaching the end might mean approved in one system and unhandled in another.
+In our checking chain, every check must pass. Another common version passes a
+request along until one handler deals with it, such as finding someone who can
+approve an expense. Decide which rule your chain uses, including what happens at
+the end. Our code accepts a request that reaches the end without being rejected.
 
 ### Picture: The Successful Checking Path
 
@@ -44,9 +47,8 @@ flowchart TD
 **Read it as a sentence:** a request passes sign-in, then usage-limit checks, then
 is accepted. If either check fails, stop there; the remaining boxes do not run.
 
-Order is part of the behavior. For example, checking sign-in first can avoid revealing
-account information to an unknown user. Allowing configurable order does not make
-every order correct.
+The order matters. If sign-in fails, quota is never checked. If we reverse the
+handlers and both checks would fail, the caller gets a different first error.
 
 ## 4. Real-World Scenario
 
@@ -75,13 +77,75 @@ The first handler owns the next one, meaning it is responsible for its cleanup.
 The yes/no fields simulate decisions; they do not verify real credentials. A real
 security system may need to reject by default and ensure required checks cannot be omitted.
 
+### C++ Flow Diagram
+
+Read downward through the intended chain. Each diamond asks whether to stop or
+forward the request; arrows are control flow, not ownership.
+
+```mermaid
+flowchart TD
+    Auth{"authenticated?"} -->|No| Unauthorized["Return unauthorized"]
+    Auth -->|Yes| Quota{"within_quota?"}
+    Quota -->|No| Exceeded["Return quota exceeded"]
+    Quota -->|Yes| End["No next handler: return accepted"]
+```
+
+The drawback function removes the quota step and accepts an over-quota request.
+Reversing the handlers also changes which error wins when both checks fail.
+
+### C++ Class Diagram
+
+Triangles mean inheritance. The filled diamond means a handler exclusively owns
+its next handler; `0..1` allows the final handler to have no successor.
+
+```mermaid
+classDiagram
+    Handler <|-- Authentication
+    Handler <|-- Quota
+    Handler "1" *-- "0..1" Handler : owns next_
+    Handler ..> Request : reads
+    class Request {
+        +authenticated bool
+        +within_quota bool
+    }
+    class Handler {
+        +then(next) Handler
+        +handle(request) string
+    }
+```
+
+`then()` actually returns `Handler&`, allowing links to be added to the returned
+next object. The base `handle()` forwards, or accepts if no next object exists.
+
+### C++ Sequence Diagram
+
+Time runs downward; solid arrows call, dashed arrows return. This request passes
+authentication but fails quota, so no acceptance result is produced.
+
+```mermaid
+sequenceDiagram
+    participant Main as main()
+    participant Auth as Authentication
+    participant Quota as Quota
+    Main->>Auth: handle(true, false)
+    Auth->>Auth: Handler::handle(request)
+    Auth->>Quota: handle(request)
+    Quota-->>Auth: quota exceeded
+    Auth-->>Main: quota exceeded
+```
+
+The arguments abbreviate the `Request{true, false}` object. The pattern cannot
+know that a required quota handler was accidentally omitted during setup.
+
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** reusable checks, fewer details in senders, and an easy place to change
-the order or selection of steps when that flexibility is genuinely needed.
+**Benefits:** callers submit a request without knowing every check. The same quota
+handler can be reused in another chain, and setup chooses which checks run in what order.
 
-**Drawbacks:** incorrect ordering can change results or weaken security. Requests
-may reach the end without anyone handling them. Long chains can be hard to trace.
+**Drawbacks:** setup can leave out an important check. The drawback example omits
+quota and accepts a request that should have failed it. Changing the order also
+changes which error is reported first. The pattern connects handlers; it does not
+know whether the chosen chain enforces all your rules.
 
 **Use it when:** handlers or their order need to vary. A short fixed list of ordinary
 function calls can be clearer when no such variation is required.

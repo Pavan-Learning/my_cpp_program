@@ -5,15 +5,18 @@
 Read a standalone lesson first for the definition, deeper idea, real-world scenario,
 and then the C++ walkthrough. The existing sections below provide further technical notes.
 
-| Topic | Standalone lesson |
-| --- | --- |
-| Adapter | [Concept-first Adapter lesson](../../lessons/patterns/structural/adapter.md) |
-| Bridge | [Concept-first Bridge lesson](../../lessons/patterns/structural/bridge.md) |
-| Composite | [Concept-first Composite lesson](../../lessons/patterns/structural/composite.md) |
-| Decorator | [Concept-first Decorator lesson](../../lessons/patterns/structural/decorator.md) |
-| Facade | [Concept-first Facade lesson](../../lessons/patterns/structural/facade.md) |
-| Flyweight | [Concept-first Flyweight lesson](../../lessons/patterns/structural/flyweight.md) |
-| Proxy | [Concept-first Proxy lesson](../../lessons/patterns/structural/proxy.md) |
+Each diagram link opens the **flow diagram**, followed immediately by the **class**
+and **sequence diagrams**, with explanations tied to that C++ program.
+
+| Topic | Standalone lesson | C++ diagrams |
+| --- | --- | --- |
+| Adapter | [Lesson](../../lessons/patterns/structural/adapter.md) | [Flow, class, sequence](../../lessons/patterns/structural/adapter.md#c-flow-diagram) |
+| Bridge | [Lesson](../../lessons/patterns/structural/bridge.md) | [Flow, class, sequence](../../lessons/patterns/structural/bridge.md#c-flow-diagram) |
+| Composite | [Lesson](../../lessons/patterns/structural/composite.md) | [Flow, class, sequence](../../lessons/patterns/structural/composite.md#c-flow-diagram) |
+| Decorator | [Lesson](../../lessons/patterns/structural/decorator.md) | [Flow, class, sequence](../../lessons/patterns/structural/decorator.md#c-flow-diagram) |
+| Facade | [Lesson](../../lessons/patterns/structural/facade.md) | [Flow, class, sequence](../../lessons/patterns/structural/facade.md#c-flow-diagram) |
+| Flyweight | [Lesson](../../lessons/patterns/structural/flyweight.md) | [Flow, class, sequence](../../lessons/patterns/structural/flyweight.md#c-flow-diagram) |
+| Proxy | [Lesson](../../lessons/patterns/structural/proxy.md) | [Flow, class, sequence](../../lessons/patterns/structural/proxy.md#c-flow-diagram) |
 
 See the [complete lesson index](../../lessons/README.md) for the other categories.
 

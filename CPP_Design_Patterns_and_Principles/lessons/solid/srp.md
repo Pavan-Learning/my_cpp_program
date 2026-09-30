@@ -2,8 +2,9 @@
 
 ## 1. Definition
 
-**Keep work that changes for different reasons in separate places.** That is the
-Single Responsibility Principle, shortened to SRP.
+**Single Responsibility Principle means keeping one closely related job together,
+and separating work that changes for different reasons.** It is usually shortened
+to SRP.
 
 For example, calculating an invoice total and choosing how to display that total
 are different jobs. A new discount rule changes the calculation; a new file format
@@ -11,12 +12,17 @@ changes the display. They should not be forced into one class just because both 
 
 ## 2. The Problem It Solves
 
-A class that calculates, saves, prints, and emails invoices is affected by many
-unrelated requests. Changing an email layout might accidentally disturb accounting
-code. Testing arithmetic might require setting up a mail service or database.
+Suppose `Invoice` both calculates the total and produces a CSV report. Accounting
+asks for a new calculation rule. Later, someone asks for a different report heading.
+Both changes send us into the same class, even though one concerns money and the
+other concerns presentation.
 
-Separate the responsibilities so that a change has a smaller, clearer place to go.
-A **responsibility** means a related set of work, not necessarily one function.
+Keep the total calculation in `Invoice` and move the report layout to a formatter.
+Now changing the heading does not require editing the arithmetic. We can also test
+the total without producing a report at all.
+
+That is the useful meaning of **responsibility** here: a related job with its own
+reasons to change, not a rule that each class can have only one function.
 
 ## 3. Understand the Idea Step by Step
 
@@ -25,9 +31,10 @@ A **responsibility** means a related set of work, not necessarily one function.
 3. Keep closely related work together.
 4. Move unrelated work to a separate helper and let the parts cooperate.
 
-A **module** can mean a class, source file, or larger unit of code. SRP can be used
-at these different sizes. It does not set a maximum number of methods. Adding,
-removing, and totaling invoice items may all belong to the same invoice responsibility.
+Adding an item, removing one, and calculating the total can still belong together.
+They all manage the invoice's contents. Formatting the result follows different
+rules, so it gets a separate home. The same question works for a whole source file
+as well as for a class: what changes should this part be responsible for?
 
 ### Picture: Calculate First, Format Separately
 
@@ -43,9 +50,9 @@ flowchart TD
 **Read it as a sentence:** the invoice supplies the number; the formatter decides
 how to present it. A layout change belongs in the formatter, not the arithmetic.
 
-Do not split related rules so aggressively that every function must edit someone
-else's public data. The object responsible for keeping its data valid should still
-control those changes. The aim is understandable responsibilities, not maximum file count.
+The formatter asks for the total; it does not reach inside the invoice and change
+its amounts. Separating the jobs should make each part easier to understand, not
+scatter one job across many tiny helpers.
 
 ## 4. Real-World Scenario
 
@@ -53,8 +60,9 @@ A payroll program calculates wages, stores records, and generates a bank file.
 Wage rules may change independently of the database or bank format. Separate helpers
 allow a format change without rewriting the pay calculation.
 
-One coordinator can still run the entire payroll process. Splitting the code does
-not remove the need to handle incomplete storage, errors, or required audit records.
+One function can still run payroll from start to finish. It calls the wage calculator,
+the record store, and the bank-file writer in order. Separating the jobs does not
+mean they can no longer work together.
 
 ## 5. Understand the C++ Example
 
@@ -73,13 +81,72 @@ text format. After, `Invoice` calculates and `CsvInvoiceFormatter` handles forma
 The point is separate reasons to change, not merely an extra class. The formatter
 could also be a regular function. The small sample does not model complete accounting rules.
 
+### C++ Flow Diagram
+
+Arrows follow the unnecessary three-helper formatting path in the drawback function.
+
+```mermaid
+flowchart TD
+    Invoice["Invoice values: 100, 250"] --> Reader["TotalReader.read(): 350"]
+    Reader --> Writer["NumberWriter.write(): string 350"]
+    Writer --> Joiner["CsvJoiner.join(): CSV text"]
+    Joiner --> Compare["Same output as one CsvInvoiceFormatter"]
+```
+
+The cost is extra pieces to connect for one formatting job. SRP separates reasons
+to change; it does not require a separate class for every expression.
+
+### C++ Class Diagram
+
+Boxes use namespace labels because the file contains two different `Invoice`
+classes. The dotted arrow means the formatter temporarily reads an invoice.
+
+```mermaid
+classDiagram
+    class BeforeInvoice["before::Invoice"] {
+        +total() int
+        +csv() string
+    }
+    class Invoice["after::Invoice"] {
+        +total() int
+    }
+    class Formatter["after::CsvInvoiceFormatter"] {
+        +format(invoice) string
+    }
+    Formatter ..> Invoice : reads total
+```
+
+There is no inheritance between the two versions. The corrected invoice owns its
+amounts; the formatter receives a reference for the duration of a call.
+
+### C++ Sequence Diagram
+
+Solid arrows call; dashed arrows return. This traces the corrected formatter.
+
+```mermaid
+sequenceDiagram
+    participant Main as main()
+    participant Formatter as after::CsvInvoiceFormatter
+    participant Invoice as after::Invoice
+    Main->>Formatter: format(invoice)
+    Formatter->>Invoice: total()
+    Note over Invoice: Sum 100 and 250
+    Invoice-->>Formatter: 350
+    Note over Formatter: Convert number and add CSV heading
+    Formatter-->>Main: total_cents newline 350
+```
+
+Calculation stays with invoice data. Changing the output heading belongs to the
+formatter and does not require changing the sum calculation.
+
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** changes have clearer homes; small parts are easier to test; unrelated
-work is less likely to be accidentally affected by a change.
+**Benefits:** a report-layout change stays in the formatter. The invoice total can
+be tested on its own, and another formatter can use the same calculation.
 
-**Drawbacks:** splitting too far makes code harder to navigate and connect. Work
-that really belongs together can become scattered.
+**Drawbacks:** splitting too far adds work without adding clarity. The drawback
+example uses a reader, a number writer, and a joiner to do what one formatter
+already does. Following three helpers makes a small formatting job harder to read.
 
 **Use it by asking:** "Why would this part change?" Do not split a small, focused
 class merely because it contains several functions.

@@ -15,7 +15,7 @@ Each lesson follows this order:
 2. **The problem it solves:** why the idea is needed and what goes wrong without it.
 3. **Step-by-step idea and picture:** explain the parts, define new words, and follow one clear example.
 4. **Real-world scenario:** another practical situation showing where the idea helps.
-5. **C++ walkthrough:** what the code names mean, what runs first, and what answers the checks expect.
+5. **C++ walkthrough and three diagrams:** what the code names mean, what runs first, and what answers the checks expect.
 6. **Benefits and drawbacks:** when to use it, when not to, and simpler alternatives.
 7. **Question and answer:** a common misunderstanding explained directly in the lesson.
 
@@ -36,9 +36,40 @@ what its arrows mean; the **Read it as a sentence** paragraph below walks throug
 - The picture teaches one idea. The walkthrough below it explains the actual C++
 	calls and any details deliberately left out of the picture.
 
+### Three Views of Every C++ Example
+
+Section 5 of every lesson now includes three additional diagrams, separate from
+the simple concept picture in section 3:
+
+| View | Question it answers | What to follow |
+| --- | --- | --- |
+| Flow diagram | What steps or decisions lead to this result or drawback? | Start at the top, follow arrows, and choose the labeled branch at a question |
+| Class diagram | Which types exist, and which ones inherit, own, or use others? | Read the relationship labels; this is structure, not execution order |
+| Sequence diagram | Who calls whom, and what comes back? | Time runs down the page; solid arrows call and dashed arrows return |
+
+Every view has its own explanation and uses names from the linked C++ source.
+Some views focus on `main()` and others on `demonstrate_drawback()`; the nearby
+text says which. They show selected details, not every check or repeated output call.
+
+In class diagrams, a hollow triangle points toward a base class, a filled diamond
+marks exclusive ownership or a contained value, and ordinary or dotted arrows
+have labels explaining borrowing, shared ownership, creation, or temporary use.
+`+` means public, `-` private, `#` protected, and `$` marks a static member.
+Some return types are shortened; the explanation gives the important C++ details.
+When the program has no custom classes, boxes marked `function` or `module` show
+its actual free functions and data types rather than inventing an object hierarchy.
+
+For a complete example, open Decorator's [flow](patterns/structural/decorator.md#c-flow-diagram),
+[class](patterns/structural/decorator.md#c-class-diagram), or
+[sequence](patterns/structural/decorator.md#c-sequence-diagram) view. Every category
+README also has a **C++ diagrams** column linking straight to these views.
+
+### Open a Rendered Preview
+
+Diagrams are in the linked Markdown lessons, not rendered inside the `.cpp` editor.
 Diagrams use Mermaid code blocks. GitHub renders them in its normal Markdown file
 view. In VS Code, open Markdown Preview with `Ctrl+Shift+V`; the preview needs Mermaid
-support. If it shows the word `flowchart` and arrows such as `-->`
+support. If it shows `flowchart`, `classDiagram`, or `sequenceDiagram` and arrows such as `-->`
 instead of a picture, that preview is displaying source rather than rendering
 Mermaid. Use a Mermaid-capable preview or GitHub's rendered file view. The plain
 text editor always shows the diagram source.

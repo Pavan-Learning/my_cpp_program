@@ -2,8 +2,8 @@
 
 ## 1. Definition
 
-**Mediator puts the rules for cooperation between several objects in one coordinator.**
-The objects report what happened to the coordinator instead of each controlling the others.
+**Mediator is one object that decides how other objects should work together.**
+They tell it what changed instead of controlling one another directly.
 
 Imagine a sign-in form. Typing into either field may change whether Submit is enabled.
 The form can own that rule; a username field does not need to control the password
@@ -11,12 +11,13 @@ field or know all the rules for the button.
 
 ## 2. The Problem It Solves
 
-If every field directly updates several other fields and buttons, their relationships
-become difficult to follow. Changing one rule may require editing many components.
-Updates can even trigger each other repeatedly.
+Suppose the username field enables Submit when it has text. That is not enough:
+the password might still be empty. We could make each field inspect the other one
+and update the button, but then both contain parts of the form's rule.
 
-Give the coordination rule one home. Each field handles its own text and reports changes.
-The mediator decides how the form should respond.
+Move that rule into the form. Each field stores its text and says, "I changed."
+The form checks both values and decides whether Submit should be enabled. If the
+rule changes later, we change it in the form instead of teaching every field the rule.
 
 ## 3. Understand the Idea Step by Step
 
@@ -25,9 +26,9 @@ The mediator decides how the form should respond.
 3. The mediator examines the relevant form values.
 4. The mediator updates the form's allowed actions.
 
-The participating objects are sometimes called **colleagues**. Here they are simply
-fields. **Notification** means informing another object that something happened.
-The mediator's useful job is making the coordination decision, not just forwarding messages.
+The fields are sometimes called **colleagues**. Their "I changed" message is a
+**notification**. The mediator does more than pass that message along: it decides
+what the change means for the form.
 
 ### Picture: Fields Tell the Form, the Form Decides
 
@@ -43,9 +44,8 @@ flowchart TD
 **Read it as a sentence:** either field tells the form about a change; the form
 decides whether Submit should be enabled. The fields do not control one another.
 
-Keep the mediator focused. One coordinator for every unrelated feature would become
-too large. Also check for update loops: changing a field from inside a notification
-may produce another notification before the first one finishes.
+The fields no longer need to know about one another. The form still does, because
+it owns the rule that depends on both values.
 
 ## 4. Real-World Scenario
 
@@ -75,13 +75,79 @@ Copying the form is disabled because an automatic copy could leave fields referr
 to the original form. During construction, fields store their references without
 calling back into a form that has not finished being created.
 
+### C++ Flow Diagram
+
+Follow one `GuardedMirror::edit()` call. The arrows show synchronous calls, not
+separate threads; the nested call happens before the outer call finishes.
+
+```mermaid
+flowchart TD
+    Edit["source_.set(): first notification"] --> Outer["changed(): count 1, set updating_ true"]
+    Outer --> Mirror["mirror_.set(): second notification"]
+    Mirror --> Inner["changed(): count 2, updating_ already true"]
+    Inner --> Stop["Return without setting mirror again"]
+    Stop --> Reset["Outer call exits: ResetFlag clears updating_"]
+```
+
+Centralizing communication does not remove feedback loops. The included guard
+stops recursion, and its local cleanup object resets the flag even on an exception.
+
+### C++ Class Diagram
+
+Triangles mean inheritance. Filled diamonds mean fields stored inside an owner;
+the ordinary arrow back to `Mediator` is borrowed, not owning.
+
+```mermaid
+classDiagram
+    Mediator <|-- SignInForm
+    Mediator <|-- GuardedMirror
+    SignInForm "1" *-- "2" TextField : username_ and password_
+    GuardedMirror "1" *-- "2" TextField : source_ and mirror_
+    TextField --> Mediator : borrows mediator_
+    class Mediator {
+        +changed() void
+    }
+```
+
+Each field knows a mediator, not its sibling field. Copying these forms is disabled
+because blindly copying the back-references would point at the old form.
+
+### C++ Sequence Diagram
+
+Solid arrows call methods; dashed arrows return results. This traces the password
+edit after `main()` has already supplied a nonempty username.
+
+```mermaid
+sequenceDiagram
+    participant Main as main()
+    participant Form as SignInForm
+    participant Password as password_ TextField
+    participant Username as username_ TextField
+    Main->>Form: password("demo-only")
+    Form->>Password: set(text)
+    Password->>Form: changed()
+    Form->>Username: empty()
+    Username-->>Form: false
+    Form->>Password: empty()
+    Password-->>Form: false
+    Note over Form: Set submit_enabled_ true
+    Main->>Form: submit_enabled()
+    Form-->>Main: true
+```
+
+The mediator checks both values; it does not authenticate a user. When the username
+is empty, the C++ AND expression skips the second emptiness check.
+
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** one place for cooperation rules; simpler individual fields; fewer
-direct relationships between components.
+**Benefits:** the button rule has one home. A field can focus on holding text and
+reporting changes instead of knowing every other control in the form.
 
-**Drawbacks:** the coordinator can become too large; notification loops need care;
-an extra class may not help a very small form.
+**Drawbacks:** putting every rule in one coordinator can make that class too large.
+Updates can also call back into it: the mirror example changes another field while
+handling a notification, which sends a second notification. Its guard stops that
+from repeating forever. Centralizing the rule does not remove the need to handle
+these repeated calls.
 
 **Use it when:** several parts affect each other. A small ordinary coordinator
 function may be enough. Observer sends notifications; a mediator can receive them

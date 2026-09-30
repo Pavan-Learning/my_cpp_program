@@ -2,8 +2,8 @@
 
 ## 1. Definition
 
-**Give callers the operations they need without forcing unrelated operations on them.**
-This is the Interface Segregation Principle, shortened to ISP.
+**Interface Segregation Principle means giving callers the abilities they need,
+without requiring unrelated ones.** It is usually shortened to ISP.
 
 An **interface** lists operations an object promises to support. **Segregation** here
 means separating that list into useful groups. A basic printer should promise
@@ -11,12 +11,13 @@ printing, not pretend it can scan just because a larger office machine can.
 
 ## 2. The Problem It Solves
 
-A huge machine interface might require printing, scanning, faxing, and stapling.
-A simple printer then has to invent meaningless implementations for most of it,
-often functions that only throw "unsupported."
+Suppose `Machine` promises both printing and scanning. An office machine can do
+both, but a basic printer cannot. To fit the interface, the basic printer ends up
+with a `scan()` function that only throws "unsupported."
 
-Callers that only print are also tied to a list containing unrelated features.
-Separate useful capabilities so objects and callers can honestly support what they need.
+Even a print-only job now asks for more than it needs. Split the promises into
+`Printer` and `Scanner`. The print job asks for a `Printer`, so either device can
+serve it. Scanning code asks for a `Scanner`, which only the office machine supplies.
 
 ## 3. Understand the Idea Step by Step
 
@@ -25,9 +26,9 @@ Separate useful capabilities so objects and callers can honestly support what th
 3. Let an object support the interfaces it can genuinely implement.
 4. Have each caller ask only for its needed interface.
 
-A **capability** is an ability, such as printing. An **implementation** supplies the
-working code for an interface. A device can implement several interfaces without
-forcing every caller to use all of them.
+Printing and scanning are separate **capabilities**, meaning abilities. The office
+machine can implement both interfaces. The split does not limit what the machine
+can do; it limits what each caller must ask for.
 
 ### Picture: Ask Only for the Needed Ability
 
@@ -43,9 +44,8 @@ flowchart TD
 **Read it as a sentence:** either machine can serve printing, but only the office
 machine serves scanning. The basic printer makes no false scanning promise.
 
-This does not mean one interface per function. Several functions can belong to one
-ability. For example, beginning, finishing, and cancelling a multi-step operation
-may need to be understood together rather than split arbitrarily.
+Do not split just to make interfaces tiny. Starting, finishing, and cancelling a
+print job may belong together because printing callers need them together.
 
 ## 4. Real-World Scenario
 
@@ -53,8 +53,9 @@ A document preview screen needs to read documents. An editor also needs to chang
 them, while an administrator may delete them. The preview code can use a small
 read interface without depending on every administrative operation.
 
-This reduces accidental connections, but it is not a complete security system.
-The service still needs permission checks for actual reads, edits, and deletions.
+The preview cannot accidentally request deletion through its read-only interface.
+The service still checks permissions; a smaller interface is not a replacement
+for access control.
 
 ## 5. Understand the C++ Example
 
@@ -73,13 +74,71 @@ separates `Printer` from `Scanner`.
 that means supporting two abstract interfaces, not copying a complicated collection
 of shared data from two parent implementations.
 
+### C++ Flow Diagram
+
+These arrows show dependency choices in `copy_document()`, not evaluation order.
+
+```mermaid
+flowchart TD
+    Job["Copy job needs scanning AND printing"] --> Same["Supply office as both arguments"]
+    Job --> Separate["Supply office scanner and basic printer"]
+    Same --> Output["Both combinations return scanned then printed"]
+    Separate --> Output
+    Output --> Limit["Interfaces alone do not require one physical machine"]
+```
+
+Small interfaces remove unsupported operations, but setup must connect all the
+capabilities a larger job needs. A same-device requirement would need another rule.
+
+### C++ Class Diagram
+
+Triangles point to supported interfaces. All types shown are from `after`.
+Two arrows from `OfficeMachine` mean it implements both capabilities.
+
+```mermaid
+classDiagram
+    Printer <|-- BasicPrinter
+    Printer <|-- OfficeMachine
+    Scanner <|-- OfficeMachine
+    class Printer {
+        +print() string
+    }
+    class Scanner {
+        +scan() string
+    }
+```
+
+`BasicPrinter` has no scanner interface. The corrected print-only caller therefore
+cannot accidentally request scanning through its printer parameter.
+
+### C++ Sequence Diagram
+
+Read downward; solid arrows call, dashed arrows return. This traces
+`after::print_job(office)` from `main()`, not the two-operation copy expression.
+
+```mermaid
+sequenceDiagram
+    participant Main as main()
+    participant Job as after::print_job()
+    participant Office as after::OfficeMachine
+    Main->>Job: print_job(office)
+    Job->>Office: print() through Printer reference
+    Office-->>Job: printed
+    Job-->>Main: printed
+```
+
+The caller depends only on printing even though this particular object can also
+scan. The same function works with `BasicPrinter` without a special-case branch.
+
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** fewer unsupported operations, simpler callers, smaller test substitutes,
-and less impact from changes to unrelated features.
+**Benefits:** the basic printer no longer has a fake scanning operation. Printing
+code works with either device and can be tested with a helper that only prints.
 
-**Drawbacks:** too many tiny interfaces become hard to find and connect. Repeatedly
-asking what type an object really is can undo the clarity gained by the split.
+**Drawbacks:** larger jobs still need their abilities connected. The copy example
+accepts separate scanner and printer arguments; those may refer to different
+machines. If copying must use one physical device, that needs another rule. Too
+many tiny interfaces can also make a straightforward job harder to assemble.
 
 **Use it by grouping:** operations around real caller needs. Small, meaningful
 interfaces are better than either one enormous interface or dozens of arbitrary fragments.

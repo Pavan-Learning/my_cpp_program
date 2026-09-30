@@ -2,16 +2,15 @@
 
 ## 1. Definition
 
-**Factory Method lets different versions of a program choose which object to create,
-while keeping the steps that use that object in one place.**
+**Factory Method lets a child class choose what to create while the parent class
+keeps the steps that use it.**
 
 Imagine a delivery program. A road delivery needs a truck. A sea delivery needs a
 ship. Both follow the same steps: get a vehicle, then ask it to deliver. We want
 to write those common steps once, without forcing every delivery to use a truck.
 
-A **class** describes a kind of thing in C++, such as `Truck`. An **object** is an
-actual instance created from that class. A **method** is a function belonging to a
-class. Here, the factory method is the function that creates the vehicle.
+The delivery steps say, "Give me a vehicle." Road logistics supplies a truck;
+sea logistics supplies a ship. The function that supplies it is the **factory method**.
 
 ## 2. The Problem It Solves
 
@@ -19,9 +18,11 @@ Suppose the delivery function creates a truck directly. It works for road delive
 When sea deliveries are added, we could copy the function and replace the truck with
 a ship. But now we have two copies of the delivery steps to maintain.
 
-If those steps later change, we might fix one copy and forget the other. Factory
-Method separates the part that changes, choosing the vehicle, from the steps that
-stay the same, getting the vehicle and using it.
+Now suppose every delivery must also produce a receipt. We have to change both
+copies. If we forget one, road and sea deliveries behave differently.
+
+We need to share the delivery steps without fixing the vehicle type inside them.
+Only the choice of vehicle should differ.
 
 ## 3. Understand the Idea Step by Step
 
@@ -31,10 +32,10 @@ stay the same, getting the vehicle and using it.
 4. Let a sea version provide a function that creates a ship.
 5. Both versions reuse the common delivery steps.
 
-In C++, a **derived class** is a class built from another class, called its **base
-class**. The road and sea classes are derived from `Logistics`. A **virtual function**
-allows a derived class to supply its own version. An **override** is that supplied
-version. Those features let the shared steps call the correct creation function.
+`Logistics` is the parent, or **base class**. Road and sea logistics are its child,
+or **derived classes**. They inherit the delivery steps and supply their own
+`create_transport()` function. C++ uses `virtual` and `override` to make the shared
+steps call the child's version.
 
 ### Picture: Follow One Delivery
 
@@ -64,8 +65,8 @@ The code makes that choice through the derived class, not an `if` inside the sha
 | Concrete creator | A specific version: road logistics or sea logistics |
 | Factory method | The replaceable creation function: `create_transport()` |
 
-Understand who creates the vehicle and who runs the common steps before trying to
-memorize these names.
+The important split is simple: `Logistics` runs the delivery; its child class
+chooses the vehicle.
 
 ## 4. Real-World Scenario
 
@@ -73,10 +74,9 @@ Imagine an editor that can open different kinds of documents. Its shared steps a
 create a document object, open it, then display it. A PDF edition creates a PDF
 document object. A spreadsheet edition creates a spreadsheet object.
 
-The opening steps can stay in one place while each edition supplies its creation
-function. This is useful when editions already reuse a common editor class. For a
-small program, a regular function that chooses a document may be enough; adding
-extra classes is not automatically an improvement.
+The editor's opening steps call a document-creation function. Each edition supplies
+its own version of that function. Adding a presentation edition means supplying
+a presentation document, not copying all the opening steps.
 
 ## 5. Understand the C++ Example
 
@@ -102,20 +102,80 @@ Trace a road delivery:
 For sea delivery, the same steps create a `Ship` and produce `Deliver by sea`.
 The checks in the program confirm both results.
 
-`unique_ptr<Transport>` is an owning pointer: it remembers the vehicle and destroys
-it automatically when the pointer is finished with it. `Transport` has a **virtual
-destructor**, allowing cleanup through the common vehicle type to run the actual
-truck or ship cleanup correctly. These are C++ memory-management details, not the
-definition of Factory Method.
+`unique_ptr<Transport>` keeps the vehicle alive and deletes it automatically when
+the delivery finishes. The **virtual destructor** makes sure the actual truck or
+ship is cleaned up correctly even though the pointer uses the name `Transport`.
+
+### C++ Flow Diagram
+
+Read downward through `demonstrate_drawback()`. Arrows mean the next design or
+execution step; the first two boxes describe the extension already in the source.
+
+```mermaid
+flowchart TD
+    Need["Add air delivery"] --> Vehicle["Add Plane: deliver returns air"]
+    Vehicle --> Creator["Add AirLogistics: creates Plane"]
+    Creator --> Run["Call air.fulfill()"]
+    Run --> Result["Check: Deliver by air"]
+```
+
+The cost is two new classes for one delivery choice. If only `deliver()` is needed,
+the function also shows that a direct `Plane` avoids the extra creator class.
+
+### C++ Class Diagram
+
+Hollow triangles point to base classes. Dotted arrows mean "creates or uses,"
+not permanent ownership. The sea pair is omitted to keep this view readable.
+
+```mermaid
+classDiagram
+    Logistics <|-- RoadLogistics
+    Logistics <|-- AirLogistics
+    Transport <|-- Truck
+    Transport <|-- Plane
+    RoadLogistics ..> Truck : creates
+    AirLogistics ..> Plane : creates
+    Logistics ..> Transport : uses during fulfill
+    class Logistics {
+        +fulfill() string
+        #create_transport() unique_ptr
+    }
+```
+
+`fulfill()` is shared. Each derived logistics class supplies only the creation
+step. Its returned `unique_ptr` is local to `fulfill()`, not a logistics field.
+
+### C++ Sequence Diagram
+
+Time runs downward. Solid arrows are calls, dashed arrows are results. `Road`
+is one object executing both inherited `fulfill()` and its own creation override.
+
+```mermaid
+sequenceDiagram
+    participant Main as main()
+    participant Road as RoadLogistics
+    participant Vehicle as Truck
+    Main->>Road: fulfill()
+    Road->>Road: create_transport()
+    Note over Road,Vehicle: Create Truck owned by a local unique_ptr
+    Road->>Vehicle: deliver()
+    Vehicle-->>Road: road
+    Note over Road,Vehicle: Local owner destroys Truck before fulfill returns
+    Road-->>Main: Deliver by road
+```
+
+Choosing `RoadLogistics` happens in setup. The factory method does not decide
+whether the customer wants road, sea, or air delivery.
 
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** write the common steps once; add another vehicle choice without
-copying those steps; keep vehicle-creation code in an obvious place.
+**Benefits:** fix the delivery steps in one place and both road and sea deliveries
+get the fix. Add a new vehicle by supplying its creation function, without copying
+the delivery process.
 
-**Drawbacks:** more classes to read and maintain. Adding a vehicle may also require
-adding a corresponding logistics class. All vehicles must support what the shared
-steps need. Some setup code must still choose road or sea logistics.
+**Drawbacks:** a new vehicle can mean two new classes. The example adds both `Plane`
+and `AirLogistics` for air delivery. That is extra work if all you needed was to
+create a plane and call `deliver()`. Setup still has to choose the logistics type.
 
 **Use it when:** several versions of a class need the same steps but must create
 different objects during those steps.
@@ -129,10 +189,9 @@ called a simple factory. It is useful, but it is not this subclass-based pattern
 **Question:** If I move `new Truck` into a function named `make_truck()`, have I used
 Factory Method?
 
-**Answer:** Not necessarily. You have given creation a name. This pattern also has
-shared steps that call a creation function whose version is supplied by a derived
-class. In this example, `fulfill()` stays the same while road and sea classes replace
-the creation step.
+**Answer:** No, not by itself. The important part is that shared delivery steps call
+a creation function that a child class can replace. Here, `fulfill()` stays the same
+while road and sea logistics choose different vehicles.
 
 For optional advanced comparisons, see the
 [creational technical notes](../../../patterns/creational/README.md#1-factory-method).

@@ -2,28 +2,28 @@
 
 ## 1. Definition
 
-**Prototype creates a new object by copying an existing object that already has
-the settings you want.** The existing object is the example to copy, called the
-prototype. The copying operation is often named `clone()`.
+**Prototype makes a new object by copying one you already have.** The original is
+the prototype, and the copying operation is often called `clone()`.
 
 Imagine duplicating a styled text box in an editor. The new box starts with the
 same font, size, and color. You can then change its text without editing the first box.
 
 ## 2. The Problem It Solves
 
-Creating a new object from scratch may require repeating many settings. Worse, the
-code requesting the copy may only know that it has a shape, not whether it is a
-circle or rectangle. It does not know which exact shape constructor to call.
+Suppose the user selects a shape and clicks **Duplicate**. Creating it from scratch
+would mean working out its type and copying its radius, color, and other settings.
+Each new shape type would give the duplicate command more details to handle.
 
-Let the existing shape create its own copy. A circle knows how to copy a circle;
-a rectangle knows how to copy a rectangle.
+Instead, the command asks the selected shape to `clone()` itself. A circle makes
+a circle; a rectangle makes a rectangle. The command does not need to know how
+each kind is constructed.
 
 ## 3. Understand the Idea Step by Step
 
 1. Give each supported kind of object a `clone()` operation.
 2. Ask an existing object to clone itself.
 3. Receive a new object with the same relevant settings.
-4. Change the new object without changing the original where independence is required.
+4. Give the copy its own editable values, so changing it does not change the original.
 
 A **pointer** stores how to reach an object. Copying a pointer merely gives another
 way to reach the same object. A clone creates another object. These are not the same.
@@ -42,10 +42,9 @@ flowchart TD
 
 **Read it as a sentence:** copy the red circle, edit the copy, and keep the original red.
 
-Decide what a copy should share. Text that users edit usually needs a separate value.
-A large read-only font resource might be shared. **Read-only** means callers cannot
-change it. Open files and unique identifiers may need special treatment rather than
-blind copying. Copying a network of objects is more complicated than copying one circle.
+Not everything must be duplicated. Each box needs its own editable text, but both
+can use the same font data if nobody can change that data. Decide what should be
+separate and what can safely be shared before writing `clone()`.
 
 ## 4. Real-World Scenario
 
@@ -75,14 +74,79 @@ string correctly. `unique_ptr<Shape>` owns the new circle and automatically dest
 it later. If a field were a pointer to shared editable data, simply copying that
 pointer would not make the data independent.
 
+### C++ Flow Diagram
+
+Arrows show changes in the intentionally shallow-copy drawback example.
+
+```mermaid
+flowchart TD
+    Original["Original owns shared red string"] --> Clone["clone(): copy shared_ptr"]
+    Clone --> Shared["Original and clone reach the SAME string"]
+    Shared --> Edit["Set clone string to blue"]
+    Edit --> Result["Original also reads blue"]
+    Result --> Fix["Copy the string itself for an independent clone"]
+```
+
+Copying a smart pointer and copying its pointed-to data are different operations.
+The final check changes a deep copy to green while the original stays blue.
+
+### C++ Class Diagram
+
+The triangle points to a base class. The ordinary association arrow means access
+to data; shared ownership is stated explicitly rather than drawn as exclusive ownership.
+
+```mermaid
+classDiagram
+    Shape <|-- Circle
+    SharedColorPrototype --> SharedString : shared_ptr owns string
+    class Shape {
+        +clone() unique_ptr
+        +set_color(color) void
+        +describe() string
+    }
+    class Circle {
+        -radius_ int
+        -color_ string
+    }
+    class SharedString["std::string"]
+```
+
+`SharedColorPrototype` is a separate teaching example, not a derived `Shape`.
+`Circle` stores a string value, so its copied color is independent already.
+
+### C++ Sequence Diagram
+
+Solid arrows are calls; dashed arrows are returned results. Original and Copy are
+two different `Circle` objects, even though the copy is reached through `Shape`.
+
+```mermaid
+sequenceDiagram
+    participant Main as main()
+    participant Original as original Circle
+    participant Copy as cloned Circle
+    Main->>Original: clone()
+    Note over Original,Copy: Copy radius 5 and red string into a new Circle
+    Original-->>Main: unique_ptr to copied Shape
+    Main->>Copy: set_color("blue")
+    Main->>Original: describe()
+    Original-->>Main: red circle r=5
+    Main->>Copy: describe()
+    Copy-->>Main: blue circle r=5
+```
+
+The successful example keeps values independent. The drawback example explains
+why that promise needs extra care when a class contains shared mutable data.
+
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** reuse an existing configuration; keep the actual shape type; avoid
-making the requesting code understand every shape's construction details.
+**Benefits:** the duplicate command works with a shape without knowing its exact
+type. The copy starts with the user's chosen settings instead of rebuilding them
+one by one.
 
-**Drawbacks:** deciding what to copy can be difficult. Large copies cost time and
-memory. Files, locks, and linked objects often need extra rules. Cloning is not
-automatically faster than normal construction.
+**Drawbacks:** a copy can accidentally share data that should be independent. In
+the drawback example, changing the copied color also changes the original because
+both point to the same string. Copying all the data avoids that problem but can
+cost more memory and time. Cloning is not automatically faster than starting fresh.
 
 **Use it when:** copying an already configured object is the natural starting point.
 If its exact type is already known, ordinary C++ value copying may be enough.
@@ -91,8 +155,7 @@ If its exact type is already known, ordinary C++ value copying may be enough.
 
 **Question:** Does copying a `shared_ptr` give me an independent copy of its object?
 
-**Answer:** No. `shared_ptr` is a pointer that shares responsibility for keeping one
-object alive. Copying it gives two pointers to that same object. To edit a separate
-object, create an actual copy of the object's relevant data.
+**Answer:** No. You get two pointers to the same object, not two objects. If the
+copy needs its own editable color, copy the color string itself.
 
 Optional detail: [creational technical notes](../../../patterns/creational/README.md).

@@ -2,21 +2,21 @@
 
 ## 1. Definition
 
-**Choose the simplest design that correctly handles the actual requirements.**
-KISS is commonly used as a reminder to keep a solution simple and understandable.
-It does not mean the shortest possible code or skipping difficult cases.
+**KISS means choosing the simplest solution that does the whole job correctly.**
+Keep it understandable, but do not remove necessary checks just to make it shorter.
 
 For example, finding the largest number in a list needs a scan, not a custom sorting
 framework. But it still needs a clear answer for an empty list.
 
 ## 2. The Problem It Solves
 
-Extra classes, clever shortcuts, and unnecessary settings make readers learn more
-before they can predict the result. Reimplementing standard algorithms also creates
-more code that can contain mistakes.
+Suppose we need the largest number in a list. Sorting the whole list would find
+it, but also orders every other number, work we did not ask for. A custom search
+framework would add even more code to understand.
 
-At the other extreme, returning an unexplained magic value on failure makes the
-function short but forces callers to guess. Simplicity must include clear behavior.
+Use the standard maximum search instead. There is still one question to answer:
+what if the list is empty? Return an explicit "no answer" result, rather than
+pretending zero was found. The solution stays small without making callers guess.
 
 ## 3. Understand the Idea Step by Step
 
@@ -25,9 +25,9 @@ function short but forces callers to guess. Simplicity must include clear behavi
 3. Represent missing answers explicitly.
 4. Add more machinery only when a real requirement justifies it.
 
-An **edge case** is an input that exposes a boundary or unusual situation, such as
-an empty collection. A **sentinel** is a special value used to signal something else.
-Returning zero for "no maximum" is a poor sentinel because zero can also be a real maximum.
+An empty list is an **edge case**, an input that needs special attention. Using
+zero to mean "empty" would make it a **sentinel**, a special signal value. But zero
+can also be a real maximum, so this signal would be ambiguous.
 
 ### Picture: Handle Empty and Nonempty Input
 
@@ -43,9 +43,9 @@ flowchart TD
 **Read it as a sentence:** an empty collection has no largest item; otherwise look
 through the values once and keep the largest.
 
-The simplest correct approach can change with the workload. One scan is appropriate
-for one query. Millions of repeated queries may justify maintaining extra information.
-Measure that need rather than adding complexity just because it looks advanced.
+One scan is enough for one maximum query. If the real job becomes answering the
+same query millions of times, storing an extra result may help. Keep the design
+as simple as the actual workload allows, not simpler than it requires.
 
 ## 4. Real-World Scenario
 
@@ -73,13 +73,72 @@ The algorithm examines each item and needs only a small fixed amount of extra me
 This is often written as O(N) time, where N is the number of items. Sorting would do
 unnecessary work and could also require changing or copying the input.
 
+### C++ Flow Diagram
+
+Arrows trace the correct `largest()` function. A diamond is a decision, and each
+return box describes the meaning of the result rather than a magic number.
+
+```mermaid
+flowchart TD
+    Input["Receive vector of integers"] --> Empty{"values.empty()?"}
+    Empty -->|Yes| None["Return nullopt: no maximum exists"]
+    Empty -->|No| Scan["max_element finds largest value"]
+    Scan --> Value["Return optional containing that value"]
+```
+
+The drawback function compares this with starting the maximum at zero. That shorter
+version invents zero for all-negative input and cannot distinguish empty input from `{0}`.
+
+### C++ Class Diagram
+
+There are no user-defined classes here. This is a static structure view: the
+`module` box contains real free functions, and dotted arrows describe data use.
+
+```mermaid
+classDiagram
+    Functions ..> Values : reads
+    Functions ..> Result : largest returns
+    class Functions["Free functions in kiss.cpp"] {
+        <<module>>
+        +largest(values) optional
+        +misleading_largest(values) int
+    }
+    class Values["std::vector<int>"]
+    class Result["std::optional<int>"]
+```
+
+`optional` represents either one integer or no integer. No inheritance or extra
+manager object is needed to express that distinction.
+
+### C++ Sequence Diagram
+
+Read downward. Solid arrows call; dashed arrows return. The algorithm lane is a
+standard-library function, not an application object.
+
+```mermaid
+sequenceDiagram
+    participant Main as main()
+    participant Largest as largest()
+    participant Algorithm as std::max_element()
+    Main->>Largest: largest([-8, -2, -5])
+    Note over Largest: Input is not empty
+    Largest->>Algorithm: search begin to end
+    Algorithm-->>Largest: iterator pointing to -2
+    Largest-->>Main: optional containing -2
+```
+
+Square brackets abbreviate the input vector. The empty-input path never calls
+`max_element`, so it never dereferences an end iterator.
+
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** easier reading, fewer moving parts, familiar standard behavior, and
-less custom code to maintain.
+**Benefits:** readers recognize `std::max_element`, and there is little custom code
+to maintain. The optional result clearly separates a number from no answer.
 
-**Drawbacks:** "simple" can be misused to ignore performance, safety, or error handling.
-A tiny function is not a good solution if it pushes confusion onto every caller.
+**Drawbacks:** "simple" can become an excuse to skip correctness. The drawback
+example starts its maximum at zero and returns zero for all-negative input, even
+though zero was never in the list. It also cannot distinguish an empty list from
+one containing zero. Fewer lines are not worth a misleading result.
 
 **Use it by comparing:** the whole cost of understanding and maintaining a solution,
 not just its line count. Specialized structures are reasonable when evidence requires them.

@@ -10,11 +10,14 @@ for their sizes and adds them. You can ask either one the same question.
 
 ## 2. The Problem It Solves
 
-Without a common operation, callers may need code saying "if this is a file, do this;
-if it is a folder, examine its children." Every caller repeats the nesting logic.
+Suppose a storage display needs the size of a selected item. For a file, it reads
+one number. For a folder, it must visit the contents. But a child can also be a
+folder, so it must keep repeating that decision further down.
 
-Instead, let each item know how to answer. A file answers directly, while a folder
-gets answers from its children. The caller does not need to inspect every level itself.
+If a report needs the same total, should it repeat all that work? Instead, give
+files and folders the same `size()` operation. A file returns its number. A folder
+asks its children for their sizes and adds them. Both callers can now simply ask
+the selected item for its size.
 
 ## 3. Understand the Idea Step by Step
 
@@ -23,9 +26,9 @@ gets answers from its children. The caller does not need to inspect every level 
 3. Make a group apply it to each child and combine the answers.
 4. Let children be either single items or other groups.
 
-This arrangement is a **tree**: one starting item has children, which can have more
-children. A **leaf** is an item without children. The group is the **composite**.
-**Recursion** means applying the same rule again to a smaller part, such as a subfolder.
+Folders inside folders form a **tree**. A file is a **leaf** because it has no
+children; a directory is a **composite** because it groups other items. When a
+directory asks a subdirectory to follow the same size rule, that is **recursion**.
 
 ### Picture: A Folder Adds the Sizes Below It
 
@@ -50,8 +53,8 @@ A slide editor groups a title, chart, and legend. Moving the group moves every
 contained item. The legend may itself be a group of labels. Each group passes the
 move request to its children using the same rule.
 
-The editor still must decide how positions work. Composite describes the grouping;
-it does not choose whether positions are relative to the slide or to a parent group.
+The move command can treat the whole group like one item. Each group handles its
+own children, so the command does not need a special loop for every nesting level.
 
 ## 5. Understand the C++ Example
 
@@ -71,14 +74,79 @@ their objects. Destroying a directory therefore cleans up its children too. A ch
 has one owner here. If items were shared between groups or linked back to their
 parents as children, repeated counting and endless traversal would need extra rules.
 
+### C++ Flow Diagram
+
+Arrows trace `Directory::size()` for the large directory in the drawback example.
+`INT_MAX` below means `std::numeric_limits<int>::max()`.
+
+```mermaid
+flowchart TD
+    Start["total = 0"] --> First["First child size = INT_MAX"]
+    First --> Add["It fits: total = INT_MAX"]
+    Add --> Second["Second child size = 1"]
+    Second --> Guard{"1 greater than INT_MAX - total?"}
+    Guard -->|Yes| Reject["Throw overflow_error BEFORE adding"]
+```
+
+Both files are valid individually, but their sum does not fit. The guard avoids
+undefined signed overflow; a common tree interface does not remove numeric limits.
+
+### C++ Class Diagram
+
+Triangles point to the base interface. The filled diamond means exclusive
+ownership through the directory's `vector` of `unique_ptr` children.
+
+```mermaid
+classDiagram
+    Node <|-- File
+    Node <|-- Directory
+    Directory "1" *-- "0..*" Node : owns children_
+    class Node {
+        +size() int
+    }
+    class Directory {
+        +add(child) void
+        +size() int
+    }
+```
+
+A child can be another directory, so the same relationship repeats at each level.
+An empty directory owns zero children and reports size zero.
+
+### C++ Sequence Diagram
+
+Solid arrows call `size()`; dashed arrows return byte counts. Read downward to
+see the recursive call finish before its parent continues.
+
+```mermaid
+sequenceDiagram
+    participant Main as main()
+    participant Root as root Directory
+    participant Small as File of 10 bytes
+    participant Nested as nested Directory
+    participant Large as File of 20 bytes
+    Main->>Root: size()
+    Root->>Small: size()
+    Small-->>Root: 10
+    Root->>Nested: size()
+    Nested->>Large: size()
+    Large-->>Nested: 20
+    Nested-->>Root: 20
+    Root-->>Main: 30
+```
+
+Each directory adds child results after checking that they fit. This diagram
+omits repeated checks in `main()` and shows one complete traversal.
+
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** simple callers, one rule for nested groups, and a natural way to model
-folders, menus, and grouped drawings.
+**Benefits:** a caller asks `size()` once whether it has a file or a whole directory.
+New nested groups follow the same rule without changes to that caller.
 
-**Drawbacks:** very deep nesting can use too much function-call memory. Huge totals
-can exceed the number type's range. A poorly chosen common interface can force
-meaningless operations onto some items.
+**Drawbacks:** a simple call can still visit a large tree. Very deep nesting can
+use too much space for unfinished function calls. Totals can also become too large:
+the drawback example rejects a sum that will not fit in an `int`. Keep the shared
+operations meaningful too; a file should not need a useless "add child" method.
 
 **Use it when:** nested groups are a real part of the problem. A flat list is simpler
 when there is no nesting to represent.

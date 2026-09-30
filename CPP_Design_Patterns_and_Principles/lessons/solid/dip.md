@@ -2,20 +2,21 @@
 
 ## 1. Definition
 
-**Business rules should ask for the service they need instead of being tied to a
-particular database, device, or external library.** This is the Dependency Inversion
-Principle, shortened to DIP.
+**Dependency Inversion Principle means writing business code around the service it
+needs, not around a particular tool that provides it.** It is usually shortened to DIP.
 
 For example, a warehouse deciding whether an item is available needs a stock count.
 It should not need to know database table names just to make that decision.
 
 ## 2. The Problem It Solves
 
-If warehouse code constructs a specific database driver, even a simple test may
-need that database running. Switching storage can also force changes to business decisions.
+Suppose a warehouse creates a SQL stock reader itself. Its decision is simple:
+can this item ship? But testing that decision now requires the reader it chose,
+and switching storage means changing the warehouse.
 
-Define the needed service in terms the warehouse understands, such as "available
-quantity for this item." Let storage code provide that service.
+The warehouse only needs to ask, "How many are available?" Describe that operation
+in `StockReader`, then let a database reader or in-memory reader provide it. The
+warehouse makes the shipping decision without knowing how the count was obtained.
 
 ## 3. Understand the Idea Step by Step
 
@@ -25,13 +26,13 @@ quantity for this item." Let storage code provide that service.
 4. Make the selected storage tool implement it.
 5. Connect the business object and storage object in setup code, often `main()`.
 
-| Technical term | Plain meaning here |
-| --- | --- |
-| Dependency | Something another part needs to do its work |
-| High-level policy | The business decision, such as whether stock is available |
-| Low-level detail | The particular database or other tool that supplies data |
-| Abstraction | The small interface describing the needed service |
-| Inversion | The tool fits the business-facing interface instead of the business code following the tool's API |
+The reader is a **dependency**: something the warehouse needs. The shipping decision
+is the **high-level policy**, while SQL storage is a **low-level detail**.
+`StockReader` is the **abstraction**, a small description of the service required.
+
+Why "inversion"? Instead of making the warehouse follow a database library's
+design, we make the storage code fit the operation the warehouse needs. Both sides
+use that shared description.
 
 ### Picture: A Question Without Database Details
 
@@ -47,18 +48,18 @@ flowchart TD
 **Read it as a sentence:** the warehouse asks for a count through an agreed service;
 the selected reader does the storage work. This picture shows calls, not C++ inheritance.
 
-The interface should express business needs. If it exposes every command and type
-from a specific database library, the business code still needs database knowledge.
-Adding virtual functions alone does not remove that dependence.
+Keep the question about stock, not SQL commands. If `StockReader` simply exposes
+all the database's details, the warehouse still has to understand that database.
+An interface helps only if it separates the details that should stay outside.
 
 ## 4. Real-World Scenario
 
 A reservation service needs to reserve one seat if one is available. A database
 implementation and a test implementation can both offer that operation.
 
-They must promise the same thing. Merely reporting an old seat count is not equivalent
-to checking and reserving together. That combined action needs protection so two
-requests cannot both claim the same last seat.
+Both versions must really reserve the seat, not just report an old count. Otherwise
+two requests could both claim the last seat. Choosing a useful service operation
+matters just as much as putting it behind an interface.
 
 ## 5. Understand the C++ Example
 
@@ -81,13 +82,73 @@ Passing the reader in is **dependency injection**: supplying a helper from outsi
 DIP is the separate decision to depend on a suitable interface. Passing a specific
 database object can be injection without removing database-specific dependence.
 
+### C++ Flow Diagram
+
+Follow the two supplied-reader cases from `demonstrate_drawback()`. The paths
+separate missing stock from an unavailable storage service.
+
+```mermaid
+flowchart TD
+    Ask["Warehouse.can_ship(book)"] --> Reader{"Which StockReader was supplied?"}
+    Reader -->|Empty MemoryStock| Zero["available() returns 0"]
+    Zero --> No["can_ship() returns false"]
+    Reader -->|UnavailableStock| Error["available() throws runtime_error"]
+    Error --> Catch["Caller catches failure; no bool returned"]
+```
+
+An in-memory fake returning counts does not test outages. The abstraction still
+needs documented error behavior and tests for more than its successful path.
+
+### C++ Class Diagram
+
+Triangles mean inheritance; the ordinary arrow means a borrowed reference.
+Warehouse, StockReader, and MemoryStock are the `after` versions.
+
+```mermaid
+classDiagram
+    Warehouse --> StockReader : borrows stock_
+    StockReader <|-- MemoryStock
+    StockReader <|-- UnavailableStock
+    class StockReader {
+        +available(sku) int
+    }
+    class Warehouse {
+        +can_ship(sku) bool
+    }
+```
+
+The warehouse depends on the operation it needs, not a SQL class. Setup supplies
+a concrete reader and must keep that borrowed object alive.
+
+### C++ Sequence Diagram
+
+Solid arrows call; dashed arrows return. This is the ready warehouse in `main()`.
+
+```mermaid
+sequenceDiagram
+    participant Main as main()
+    participant Warehouse as after::Warehouse
+    participant Reader as after::MemoryStock
+    Main->>Warehouse: can_ship("book")
+    Warehouse->>Reader: available("book")
+    Note over Reader: Find book in the supplied map
+    Reader-->>Warehouse: 3
+    Note over Warehouse: Compare 3 greater than 0
+    Warehouse-->>Main: true
+```
+
+The warehouse owns the business decision; the reader supplies data. Neither the
+interface nor this call sequence provides automatic retries or fallback storage.
+
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** test business decisions without external services, replace storage
-details more easily, and make required services explicit.
+**Benefits:** test the warehouse with three books or no books without starting a
+database. Another reader can supply stock without rewriting the shipping decision.
 
-**Drawbacks:** more interfaces and setup. A test reader may misrepresent real storage
-behavior unless both are checked against the same promises.
+**Drawbacks:** there is more setup, and a simple test reader may miss real failures.
+The drawback example distinguishes no stock from an unavailable reader: one returns
+zero, while the other throws. The shared interface still needs clear failure rules;
+using it does not make outages disappear.
 
 **Use it for:** important boundaries that perform outside work or are likely to change.
 Do not invent an interface for every simple value merely to follow a slogan.
