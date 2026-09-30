@@ -3,6 +3,26 @@
 Use this as a quick reference while reading a lesson. The technical names are
 useful in C++ books and interviews; the examples explain what those names mean.
 
+## Basic C++ Words
+
+| Term | Plain meaning | Small example |
+| --- | --- | --- |
+| Class | A definition of a kind of object, including its data and functions | `Truck` describes truck objects |
+| Object or instance | One actual value created from a type | One truck created for a delivery |
+| Method or member function | A function belonging to a class | A truck's `deliver()` function |
+| Constructor | The function that initializes a new object | Set a circle's radius when creating it |
+| Destructor | The function used for an object's cleanup | Release an owned connection when its owner is destroyed |
+| Base class | A class other classes extend | `Shape` describes shared shape operations |
+| Derived class or subclass | A class built from a base class | `Circle` supplies circle-specific behavior |
+| Virtual function | An operation whose version can be supplied by a derived class | Ask a `Shape` for area and run the circle's calculation |
+| Override | A derived class's version of a virtual function | `RoadLogistics` supplies its truck-creation function |
+| Pointer | A value that stores how to reach an object | A pointer refers to an existing circle |
+| Reference | Another name for an existing object, not a copy of it | A function receives access to the caller's document |
+| Scope | A region of code, often inside braces | An ordinary local owner is cleaned up when its block is left |
+| Exception | An error signal that leaves normal execution for a handler | Reject constructing an invalid percentage |
+| Lambda | A small function written where it is needed | A test supplies a function returning a chosen time |
+| Template | A recipe the compiler can use with suitable types | Build the same report-writing function for different output types |
+
 ## Objects and Their Jobs
 
 | Term | Plain meaning | Small example |
@@ -56,7 +76,7 @@ recovery design. Also, one atomic variable does not make a whole workflow atomic
 
 | Term | Plain meaning | Small example |
 | --- | --- | --- |
-| Lifetime | The period when an object exists and can be used | A local object lives until its scope is left |
+| Lifetime | The period when an object exists and can be used | An ordinary automatic local object lives until its scope is left |
 | Ownership | Responsibility for releasing a resource | A `unique_ptr` destroys its owned object |
 | Borrowing | Using a resource without owning it | A reference lets a report use a printer owned elsewhere |
 | Move | An operation that can transfer stored resources instead of copying them | Moving a `unique_ptr` transfers responsibility for the same object |

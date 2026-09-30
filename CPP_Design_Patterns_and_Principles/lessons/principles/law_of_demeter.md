@@ -2,78 +2,93 @@
 
 ## 1. Definition
 
-The Law of Demeter encourages an object to collaborate with its immediate partners
-rather than navigating through their internal object relationships. It is often
-summarized as limiting knowledge of other objects' internal structure.
+**Ask the object you already work with for the result you need, instead of reaching
+through several of its internal objects to assemble that result yourself.**
 
-It is not a mechanical rule against multiple dots in an expression.
+For example, ask an order for its shipping label. The caller should not normally
+need to fetch the customer, fetch the address, and learn how its postcode is stored.
 
 ## 2. The Problem It Solves
 
-A client that reaches through order, customer, address, and postcode objects knows
-how another part of the system is assembled. Moving address information elsewhere
-can then break many clients that never needed that structural knowledge.
+A caller that follows a long chain of internal objects knows how another part is
+organized. Moving address storage or introducing guest checkout can then break that caller,
+even though it still only needs a label.
 
-Such navigation leaks representation across boundaries and spreads responsibility
-for interpreting it. The client should often ask for the meaningful result instead.
+Give useful behavior to the object that understands the relationship. Keep outside
+code focused on its goal rather than on navigating internal storage.
 
-## 3. Understand the Principle
+## 3. Understand the Idea Step by Step
 
-An operation can ask its direct collaborator to perform relevant work. That
-collaborator may delegate to its own direct partner. Each boundary exposes behavior
-rather than the entire path through private state.
+1. Identify the actual answer the caller needs.
+2. Ask whether the caller is exploring unrelated internals to obtain it.
+3. Put a meaningful operation on an appropriate direct helper.
+4. Let that helper ask its own direct helpers for the necessary work.
 
-Delegation is useful when it protects real independence. Blindly adding forwarding
-methods for every nested property can bloat outer APIs and hide a simpler data model.
-Read-only transfer objects and deliberate navigation structures may reasonably
-expose their data.
+A **collaborator** is simply a helper object. **Delegation** means asking a helper
+to perform part of a job. **Representation** means how information is organized
+inside an object; callers should not need those details unnecessarily.
 
-The deeper question is how many unrelated implementation decisions a caller must
-understand. Fluent calls on one builder do not necessarily reveal any such decisions.
+### Picture: Each Object Talks to Its Own Neighbor
+
+Read each arrow as a request made only by the object immediately above it.
+
+```mermaid
+flowchart TD
+    Caller["Screen asks for a shipping label"] --> Order["Order asks its customer"]
+    Order --> Customer["Customer asks its address"]
+    Customer --> Address["Address supplies the label text"]
+```
+
+**Read it as a sentence:** the screen talks to the order, not directly to the
+customer's address. Each object handles the next relationship it already understands.
+
+This is not a rule about counting dots in C++ expressions. A sequence of calls on
+one builder can be a well-designed public interface. Equally, adding dozens of
+forwarding functions just to hide punctuation can make code worse.
 
 ## 4. Real-World Scenario
 
-A shipping screen needs a destination label for an order. If it retrieves nested
-customer records and formats the address itself, changes to saved addresses or
-guest checkout spread into UI code.
+A shipping screen needs a destination label. If it formats nested customer records
+itself, changes to saved addresses or guest orders spread into screen code.
+An order-facing label operation can hide those changes.
 
-A shipping-label operation can own that decision, possibly delegating formatting
-to a separate service when localization varies independently. The boundary should
-represent the use case, not merely conceal a getter chain with another name.
+If address formatting varies independently, a separate formatting helper may do that
+part. Plain read-only records can also be appropriate when the caller genuinely
+needs structured data, not one specific answer.
 
 ## 5. Understand the C++ Example
 
 Open [law_of_demeter.cpp](../../principles/law_of_demeter.cpp).
 
-`Order` owns a `Customer`, which owns an `Address`. The client asks only the order
-for `shipping_label()`.
+`Order` contains a `Customer`, and that customer contains an `Address`. The caller
+uses only `Order::shipping_label()`.
 
-1. An address is created with postcode `10115`.
-2. The customer receives that address, and the order receives the customer.
-3. The order delegates its label request to its direct customer.
-4. The customer asks its direct address for the formatted label.
-5. The returned value is `Ship to 10115`, which is checked and printed.
+1. Create an address with postcode `10115`.
+2. Put the address in the customer and the customer in the order.
+3. Ask the order for its shipping label.
+4. The order asks the customer, which asks the address.
+5. The result is `Ship to 10115`; the example checks and prints it.
 
-Nested objects are owned by value. The returned string is an independent result,
-not a mutable reference into private storage. The caller does not depend on accessors
-for the internal object graph.
+These inner objects are stored by value, so their lifetimes follow the containing
+objects. The returned string is a separate value, not editable access to an internal
+address field. The caller need not depend on a chain of getters.
 
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** reduced knowledge of representation, smaller change impact, and
-client code expressed in domain goals.
+**Benefits:** less knowledge of internal structure, fewer callers affected by
+relationship changes, and operations named after what callers want to accomplish.
 
-**Drawbacks:** excessive forwarding can enlarge APIs and conceal legitimate data
-access. The principle should not forbid sensible immutable data models.
+**Drawbacks:** excessive forwarding can enlarge interfaces and make simple data
+hard to access. Some navigation is deliberate and appropriate, such as traversing a tree.
 
-Apply it where navigation exposes volatile relationships. Use explicit query
-models or DTOs when clients genuinely need structured read-only data.
+**Use it where:** callers learn changeable internal relationships without needing to.
+Do not hide meaningful structured data merely to follow the principle mechanically.
 
 ## 7. Check Your Understanding
 
 **Question:** Is `builder.url(...).timeout(...).build()` necessarily a violation?
 
-**Answer:** No. The chain uses one intended fluent API. Count knowledge dependencies,
-not punctuation.
+**Answer:** No. These calls can use one intended builder interface. Ask how many
+internal relationships the caller must understand, not how many dots appear.
 
-See the [principles technical notes](../../principles/README.md).
+Optional detail: [principles technical notes](../../principles/README.md).

@@ -2,79 +2,96 @@
 
 ## 1. Definition
 
-Facade is a structural pattern that exposes a simplified, higher-level interface
-to a subsystem containing several cooperating components. It provides a convenient
-entry point for common use cases without requiring clients to understand all
-subsystem details.
+**Facade gives callers one simple operation for a job that needs several parts
+working together.** The facade knows which parts to call and in what order.
+
+For example, a caller asks to check out an order. It should not have to repeat all
+the stock-check and payment steps each time. The facade provides that convenient entry point.
 
 ## 2. The Problem It Solves
 
-Performing one user-visible action may require many low-level calls in the correct
-order. If every client repeats the sequence, subsystem knowledge spreads and
-clients can disagree about initialization, validation, and error handling.
+If several screens each call stock and payment code themselves, their sequences
+can drift apart. One might reduce stock even when payment fails. A change to the
+checkout sequence then needs to be copied into several places.
 
-The application needs one operation expressed in the client's vocabulary, while
-the subsystem retains its smaller specialized components.
+Put the common sequence in a checkout function that coordinates the smaller parts.
+Those parts still keep their own jobs; the facade does not need to absorb all their code.
 
-## 3. Understand the Mechanism
+## 3. Understand the Idea Step by Step
 
-The client calls the facade. The facade coordinates subsystem objects and returns
-a result suitable for that use case. Subsystem objects usually do not need to know
-the facade exists; they keep their own responsibilities.
+1. Identify a complete task callers repeatedly need.
+2. Put its sequence of calls behind one meaningful operation.
+3. Use the existing specialized parts to perform each step.
+4. Return a clear result, including failures callers need to understand.
 
-A facade does not necessarily hide all lower-level APIs. Advanced clients may use
-them if the architecture permits it. Where bypass would violate invariants, access
-must be restricted deliberately rather than assumed from the pattern name.
+A **subsystem** simply means the group of parts doing the underlying work. Here,
+stock management and payment form part of the checkout subsystem. An **interface**
+is how callers ask for work; the facade offers a simpler interface to that group.
 
-Convenience is not atomicity. If step three fails after steps one and two produced
-effects, the facade needs a defined recovery policy. A single method call can still
-represent a partially completed multi-system operation.
+### Picture: One Request, Several Steps
+
+Read downward. This is the successful path. A failed check stops before the next step.
+
+```mermaid
+flowchart TD
+    Caller["1. Ask to check out"] --> Stock["2. Check stock is available"]
+    Stock --> Pay["3. Ask for payment approval"]
+    Pay --> Reserve["4. Reserve the item"]
+    Reserve --> Result["5. Confirm the order"]
+```
+
+**Read it as a sentence:** one checkout request causes the facade to check stock,
+check payment, reserve the item, and return the result.
+
+One function call is not automatically an all-or-nothing operation. If payment
+succeeds but reservation later fails, the real application needs a recovery rule,
+such as releasing a payment hold. The facade organizes the steps; it does not make
+external failures disappear.
 
 ## 4. Real-World Scenario
 
-Imagine a video-export application. Export requires selecting a codec, decoding
-frames, converting audio, encoding output, and writing a container. An export
-facade accepts input and output settings and coordinates that pipeline.
+A video editor offers one "export video" action. Inside, it reads frames, converts
+audio, encodes video, and writes an output file. The screen calls one export service
+instead of knowing how every media library works.
 
-The user-facing client need not understand each codec library. Yet cancellation,
-unsupported formats, and partial output must still be surfaced. Hiding every failure
-behind a generic “done” result would simplify syntax at the expense of correctness.
+The service still needs to report unsupported formats, cancellation, and partially
+written files. A simple entry point should not hide important failures.
 
 ## 5. Understand the C++ Example
 
 Open [facade.cpp](../../../patterns/structural/facade.cpp).
 
-`Inventory` owns stock. `Payment` simulates approval. `CheckoutFacade` borrows both
-and provides `checkout()`.
+`Inventory` keeps the stock count. `Payment` simulates approval or rejection.
+`CheckoutFacade` uses both through its `checkout()` function.
 
-1. The facade first checks whether stock exists.
-2. With declined payment, it returns `payment declined` without reserving stock.
-3. The check confirms that the original unit remains available.
-4. With approved payment, it reserves the unit and returns `order confirmed`.
-5. A subsequent call returns `out of stock`.
+1. Start with one unit in stock.
+2. A declined payment gives `payment declined`; stock stays at one.
+3. An approved payment allows reservation and gives `order confirmed`.
+4. Stock is now zero, so another call gives `out of stock`.
+5. The checks verify these results and that rejection does not consume stock.
 
-The checks cover successful coordination and both rejection paths. The output
-summarizes that verification. Payment is only a boolean simulation, and this
-single-threaded sequence is not a production transaction or reservation protocol.
+The facade **borrows** its helpers: it uses existing objects without owning their
+cleanup. They must remain alive while it uses them. Payment is only a yes/no simulation,
+and the example assumes calls are not competing at the same time.
 
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** simpler clients, centralized workflow ordering, reduced exposure to
-subsystem changes, and a focused testing boundary.
+**Benefits:** simpler callers, one place for the shared sequence, and fewer callers
+affected by changes inside the underlying parts.
 
-**Drawbacks:** can grow into an oversized coordinator, conceal necessary features,
-or obscure partial failures. It adds coordination rather than eliminating it.
+**Drawbacks:** the facade can grow too large; it can hide useful choices or meaningful
+errors; recovery after partial completion still needs design work.
 
-Use it for a meaningful common use case. A thin forwarding method that adds no
-abstraction may not help. Adapter translates an incompatible API; Mediator governs
-colleague interactions; Facade offers a client-oriented subsystem entry point.
+**Use it when:** callers need a common task spanning several parts. A function that
+merely forwards an already simple operation may not add value. Adapter translates
+an incompatible operation; Facade simplifies a larger job.
 
 ## 7. Check Your Understanding
 
-**Question:** Does `checkout()` being one function prevent two clients buying the
-same last item?
+**Question:** Does putting checkout into one function stop two buyers claiming the last item?
 
-**Answer:** No. Concurrent reservation needs an atomic stock operation or another
-concurrency mechanism. Facade organizes calls; it does not make them indivisible.
+**Answer:** No. Both could check before either reserves it. The stock system needs
+a reservation operation that checks and updates as one protected action. This
+example does not implement that protection.
 
-See the [structural technical notes](../../../patterns/structural/README.md).
+Optional detail: [structural technical notes](../../../patterns/structural/README.md).

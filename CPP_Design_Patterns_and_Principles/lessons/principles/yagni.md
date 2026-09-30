@@ -2,74 +2,94 @@
 
 ## 1. Definition
 
-YAGNI advises against implementing speculative capabilities before there is a
-justified requirement for them. Build what is needed, while preserving ordinary
-clarity and changeability, rather than paying now for imagined future features.
+**Do not build a feature just because someone imagines it might be useful someday.**
+Build it when there is a real, justified need. YAGNI stands for You Aren't Gonna Need It.
+
+This is not a prediction that a feature will never be needed. It is a reminder that
+building it now has a cost, while the eventual requirement may be different or never arrive.
 
 ## 2. The Problem It Solves
 
-Predicted requirements are often wrong. A generic framework built for them creates
-code to test, document, secure, and maintain before it creates useful value. The
-chosen abstraction may later make the actual requirement harder to implement.
+A simple report request can turn into weeks of building themes, plug-ins, email
+scheduling, and multiple export formats. All that unused code still needs testing,
+documentation, and maintenance.
 
-The cost is not only development time. Unused features enlarge the system's state
-space and distract from learning what real users need.
+Worse, the guessed framework may make the real future feature harder to add because
+it was designed around the wrong assumptions.
 
-## 3. Understand the Principle
+## 3. Understand the Idea Step by Step
 
-Distinguish a foreseeable obligation from unsupported speculation. Security,
-correctness, data durability, and compatibility can be current requirements even
-when their consequences arrive later. YAGNI does not excuse ignoring them.
+1. Identify what users actually need now.
+2. Build that behavior clearly and correctly.
+3. Keep code readable and tested so later changes remain practical.
+4. Reconsider the design when a real additional requirement appears.
 
-Prefer reversible decisions when uncertainty is high. Clear modules, tests, and
-ordinary ownership make later changes easier without building every possible
-extension point in advance.
+A **requirement** is something the system must provide or guarantee. A **speculative
+feature** is a guessed future capability without sufficient evidence. Known security,
+safety, and data-protection requirements are not optional speculation.
 
-When a real second requirement appears, reassess. Avoid both extremes: refusing
-to generalize forever and generalizing for an unlimited imaginary product roadmap.
+### Picture: Decide Whether the Feature Has a Real Need
+
+Read the question first, then follow the appropriate answer.
+
+```mermaid
+flowchart TD
+    Need{"Is this a real requirement?"} -->|Yes| Build["Implement and test the needed behavior"]
+    Need -->|Only a guess| Wait["Defer it and keep the current design clear"]
+```
+
+**Read it as a sentence:** build what is justified; postpone guessed features
+without making today's code careless or difficult to change.
+
+Some decisions are expensive to reverse, such as stored data formats and public
+interfaces used by customers. Think about them early. YAGNI rejects unnecessary
+feature work, not thoughtful planning about known risks.
 
 ## 4. Real-World Scenario
 
-An internal stock tool must display a text availability report. Building PDF themes,
-scheduled email, plugin discovery, and a distributed report queue would be
-speculative if nobody needs those capabilities.
+An internal stock tool needs a text message showing availability. No one needs
+PDF themes or scheduled exports yet. A text-formatting function meets the request.
 
-A later contractual requirement for monthly PDF exports changes the evidence.
-Implementing that capability then is not inconsistency; it is responding to a
-real need. A simple second formatter may still be enough without a plugin platform.
+Later, a signed customer requirement may demand monthly PDF reports. That new
+evidence justifies implementing PDF output. Even then, a second formatter may be
+enough; a full plug-in system is not automatically necessary.
 
 ## 5. Understand the C++ Example
 
 Open [yagni.cpp](../../principles/yagni.cpp).
 
-`stock_report()` directly formats the available count. Its small size is intentional:
-the example demonstrates a design decision not to introduce an unnecessary pattern.
+`stock_report()` is deliberately small. Its job is to format an available count,
+not to demonstrate how many classes can be fitted into a reporting problem.
 
-1. The function receives a count.
-2. It converts that count to text and prefixes `Available: `.
-3. Tests verify both zero and 12.
-4. The program prints `Available: 12`.
+1. Receive the count.
+2. Convert it to text.
+3. Put `Available: ` before it.
+4. Checks verify zero and 12.
+5. The displayed result is `Available: 12`.
 
-There is no format registry or base report hierarchy because none is required.
-The function formats data; it does not own inventory validity. If negative counts
-are forbidden, the relevant domain or input boundary should enforce that rule.
+There is no report registry or inheritance tree because the current job does not
+need one. The formatter also does not own stock validity. If negative counts are
+forbidden, the inventory or input code must enforce that rule deliberately rather
+than assuming formatting has validated it.
 
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** smaller maintenance burden, faster feedback, and fewer guessed
-abstractions or unused failure paths.
+**Benefits:** less unused code, faster feedback from actual users, fewer unnecessary
+failure paths, and less maintenance of guessed designs.
 
-**Drawbacks:** misapplication can ignore expensive-to-reverse architectural
-constraints. Some planning is needed for durable data, public APIs, and safety.
+**Drawbacks:** applying the slogan carelessly can ignore costly long-term obligations.
+Some planning is essential for safety, compatibility, and durable data.
 
-Use evidence and the cost of reversal to decide what must be designed now. OCP is
-useful for known variation; it does not require extension points for every imagined one.
+**Use it by asking:** what evidence supports this feature, and what happens if we
+delay the decision? Open/Closed is useful for known kinds of change; it does not
+require extension points for every imagined possibility.
 
 ## 7. Check Your Understanding
 
-**Question:** Should tests be omitted because future bugs are uncertain?
+**Question:** Can we skip tests because we do not know which future bugs will occur?
 
-**Answer:** No. Tests support the current behavior and safe change. YAGNI targets
-speculative functionality, not the engineering needed to deliver today's contract.
+**Answer:** No. Tests check today's promised behavior and help us change it safely.
+YAGNI targets unneeded functionality, not the work required to deliver current
+functionality correctly.
 
-See the [principles technical notes](../../principles/README.md).
+Optional detail: [principles technical notes](../../principles/README.md).

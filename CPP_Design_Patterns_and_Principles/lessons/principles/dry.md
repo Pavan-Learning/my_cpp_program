@@ -2,78 +2,93 @@
 
 ## 1. Definition
 
-DRY says that each piece of authoritative knowledge should have one clear
-representation in a system. A business rule, format definition, or invariant
-should not need independently coordinated edits in several places.
+**Keep each rule in one clear place instead of maintaining separate copies of that rule.**
+DRY stands for Don't Repeat Yourself. It is about repeated knowledge, not banning
+every repeated line of code.
 
-The principle targets duplicated **knowledge**, not every repeated line of syntax.
+For example, a website and a shop kiosk should ask the same shipping rule for a fee.
+They should not separately remember what order amount qualifies for free shipping.
 
 ## 2. The Problem It Solves
 
-When the same rule is copied into multiple clients, one copy eventually changes
-without the others. The system then gives inconsistent answers depending on which
-path a user takes. Tests also duplicate assumptions and can drift together with code.
+Suppose both checkout programs copy the rule "shipping is free at 5000 cents."
+Later, someone changes only the website's copy. Customers now get different prices
+depending on how they order.
 
-Centralizing the real decision makes its ownership and change location clear.
-However, combining unrelated rules merely because they currently look alike
-creates a different maintenance problem: accidental coupling.
+Share the real rule so that changing it in one place changes both callers consistently.
+The shared place is sometimes called the **source of truth**: the authoritative
+definition other code uses instead of guessing or copying.
 
-## 3. Understand the Principle
+## 3. Understand the Idea Step by Step
 
-Ask whether two pieces of code must change together for the same reason. If they
-express the same policy, share the policy. If they only happen to use the same
-formula today, keep independent responsibilities independent until evidence shows
-a meaningful common abstraction.
+1. Find repeated decisions, such as a fee or eligibility rule.
+2. Ask whether they must change together for the same reason.
+3. If yes, name the shared rule and put it in a function or object.
+4. Have callers use that rule rather than reproducing its details.
 
-The authoritative representation can be a function, value object, schema, or
-generated definition. It need not be a universal utility class. A good abstraction
-names the shared knowledge; a helper with many mode flags may merely conceal
-unrelated implementations behind one API.
+Do not merge unrelated rules simply because today's arithmetic matches. Two regions
+may currently use the same tax percentage but change it independently. The multiplication
+helper can be shared while each region keeps its own policy.
+
+### Picture: Two Callers Ask One Rule
+
+Read each arrow as "asks for the shipping fee." Both callers reach the same rule box.
+
+```mermaid
+flowchart TD
+    Web["Website checkout"] --> Rule["One shipping rule"]
+    Kiosk["Shop kiosk checkout"] --> Rule
+    Rule --> Answer["Fee is 500 below 5000; otherwise 0"]
+```
+
+**Read it as a sentence:** the website and kiosk do not each decide shipping; they
+both ask the shared rule. Updating that rule updates the decision for both.
+
+A shared rule does not need a huge utility class. A small named function often
+expresses it more clearly than a generic helper full of switches for unrelated cases.
 
 ## 4. Real-World Scenario
 
-A subscription system applies an eligibility rule in a web checkout, support tool,
-and renewal job. If each reimplements the rule, customers may qualify in one path
-but fail in another. A shared policy or authoritative service keeps the decision
-consistent.
+A subscription offer appears in web checkout, a support tool, and a renewal job.
+All three should use the same eligibility rule. Otherwise a customer could qualify
+through one path and be rejected through another.
 
-Two different countries' tax rules may initially have the same percentage but
-change independently. Treating them as one rule would be false DRY. Common arithmetic
-can be reused while each jurisdiction's policy retains its own identity.
+Separate offers that only happen to have the same discount today should stay separate
+when they have different owners or reasons to change.
 
 ## 5. Understand the C++ Example
 
 Open [dry.cpp](../../principles/dry.cpp).
 
-`ShippingRules` owns the free-shipping threshold and fee policy. Web and kiosk
-functions both ask it for the fee rather than repeating the threshold decision.
+`ShippingRules` contains the fee decision. The web and kiosk functions ask it for
+the fee and add that fee to the order subtotal.
 
-1. A subtotal below 5000 receives a 500-cent fee.
-2. The 4999 boundary therefore totals 5499.
-3. At 5000, shipping is free and the total stays 5000.
-4. Both clients produce the same result for a 2000-cent subtotal.
-5. Negative subtotals are rejected by the rule's validation.
+1. A subtotal below 5000 cents receives a fee of 500.
+2. At 4999, the total is `4999 + 500 = 5499`.
+3. At 5000, the fee is zero, so the total remains 5000.
+4. Both checkout functions give the same result for a subtotal of 2000.
+5. Negative subtotals are rejected instead of producing an invented price.
 
-The client functions remain separate even though their current arithmetic looks
-similar. The policy is what must stay consistent; unrelated client workflows may
-later evolve independently.
+The web and kiosk functions remain separate. Their surrounding work may later differ;
+only the rule that must stay the same is shared. Checks at 4999 and 5000 test the
+**boundary**, the exact point where the decision changes.
 
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** consistent decisions, one policy change point, and focused boundary tests.
+**Benefits:** consistent answers, one place to change a rule, and focused checks
+around the important decision points.
 
-**Drawbacks:** premature unification couples unrelated concerns and can produce
-flag-heavy generic helpers. Shared dependencies also require intentional versioning.
+**Drawbacks:** sharing unrelated logic ties changes together unnecessarily. One
+overly general function can become harder to understand than a little repetition.
 
-Share stable knowledge; tolerate some local repetition while the real relationship
-is uncertain. KISS and YAGNI help prevent an elaborate abstraction created only
-to eliminate a few similar lines.
+**Use it by asking:** "Are these the same rule, or only similar-looking code?"
+Some duplication is reasonable while the relationship is still unclear.
 
 ## 7. Check Your Understanding
 
-**Question:** Must two functions using `amount * 2` become one function?
+**Question:** Must two functions containing `amount * 2` be merged?
 
-**Answer:** Not necessarily. One might calculate double points and the other a
-two-person booking. Similar arithmetic is not proof of one business rule.
+**Answer:** No. One may calculate loyalty points while the other prices a two-person
+booking. Matching arithmetic does not prove that they represent the same rule.
 
-See the [principles technical notes](../../principles/README.md).
+Optional detail: [principles technical notes](../../principles/README.md).

@@ -2,78 +2,94 @@
 
 ## 1. Definition
 
-The Interface Segregation Principle says that clients should not be forced to
-depend on operations they do not need. Shape interfaces around coherent client
-capabilities rather than requiring every implementation to support one oversized API.
+**Give callers the operations they need without forcing unrelated operations on them.**
+This is the Interface Segregation Principle, shortened to ISP.
+
+An **interface** lists operations an object promises to support. **Segregation** here
+means separating that list into useful groups. A basic printer should promise
+printing, not pretend it can scan just because a larger office machine can.
 
 ## 2. The Problem It Solves
 
-A broad interface can force small implementations to provide meaningless methods
-and force clients to learn or recompile against unrelated features. “Unsupported”
-stubs are often evidence that the abstraction groups incompatible capabilities.
+A huge machine interface might require printing, scanning, faxing, and stapling.
+A simple printer then has to invent meaningless implementations for most of it,
+often functions that only throw "unsupported."
 
-The goal is truthful, focused dependencies. A client asking only to read should
-not automatically require a full read/write/delete administration interface.
+Callers that only print are also tied to a list containing unrelated features.
+Separate useful capabilities so objects and callers can honestly support what they need.
 
-## 3. Understand the Principle
+## 3. Understand the Idea Step by Step
 
-Identify what each client actually needs to accomplish its task. Group operations
-that form a coherent capability, then let concrete objects implement the capabilities
-they genuinely support. A more capable object can satisfy several narrow interfaces.
+1. Look at what each caller actually needs to do.
+2. Group related operations into focused interfaces.
+3. Let an object support the interfaces it can genuinely implement.
+4. Have each caller ask only for its needed interface.
 
-ISP is not a rule to create one interface per method. Operations such as begin,
-commit, and rollback may belong together because clients need their combined
-transaction contract. Splitting them without regard for meaning can weaken the API.
+A **capability** is an ability, such as printing. An **implementation** supplies the
+working code for an interface. A device can implement several interfaces without
+forcing every caller to use all of them.
 
-Narrow interfaces also make tests smaller and LSP easier to satisfy, but they do
-not prove semantic correctness. An implementation still must honor each capability's
-promises.
+### Picture: Ask Only for the Needed Ability
+
+Read arrows as "can send its request to." The printing caller does not require scanning.
+
+```mermaid
+flowchart TD
+    Print["Caller needs printing"] --> Basic["Basic printer can print"]
+    Print --> Office["Office machine can print and scan"]
+    Scan["Caller needs scanning"] --> Office
+```
+
+**Read it as a sentence:** either machine can serve printing, but only the office
+machine serves scanning. The basic printer makes no false scanning promise.
+
+This does not mean one interface per function. Several functions can belong to one
+ability. For example, beginning, finishing, and cancelling a multi-step operation
+may need to be understood together rather than split arbitrarily.
 
 ## 4. Real-World Scenario
 
-A document platform has preview, edit, and administrative-delete clients. The preview
-component needs only a read capability. Editors need update operations, while an
-administration service needs deletion authority.
+A document preview screen needs to read documents. An editor also needs to change
+them, while an administrator may delete them. The preview code can use a small
+read interface without depending on every administrative operation.
 
-Separate interfaces prevent ordinary preview code from depending on administrative
-functions. This reduces accidental coupling, but interface separation is not by
-itself security enforcement; permission checks are still needed at trust boundaries.
+This reduces accidental connections, but it is not a complete security system.
+The service still needs permission checks for actual reads, edits, and deletions.
 
 ## 5. Understand the C++ Example
 
 Open [isp.cpp](../../solid/isp.cpp).
 
-The before `Machine` interface combines print and scan. A basic printer is forced
-to implement scanning by throwing an unsupported-operation exception.
+The old `Machine` interface requires both printing and scanning. The new code
+separates `Printer` from `Scanner`.
 
-1. The test calls that unsupported operation and verifies the problem is observable.
-2. The after design separates `Printer` from `Scanner`.
-3. `BasicPrinter` implements only `Printer`, making no scanning promise.
-4. `OfficeMachine` implements both capabilities.
-5. `print_job()` accepts only `Printer`, so either device can satisfy its dependency.
-6. A separate check confirms scanning works on the office machine.
+1. The old basic printer throws an error when asked to scan; the check exposes the problem.
+2. The new `BasicPrinter` implements only printing.
+3. `OfficeMachine` implements printing and scanning.
+4. `print_job()` asks for a `Printer`, so either new device can be supplied.
+5. A separate check confirms the office machine can scan.
 
-The multiple inheritance combines abstract capabilities, not shared implementation
-state. The improvement is that clients and implementers can depend on truthful
-roles rather than negotiate a fat interface full of exceptions.
+`OfficeMachine` uses multiple inheritance to promise two sets of operations. Here,
+that means supporting two abstract interfaces, not copying a complicated collection
+of shared data from two parent implementations.
 
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** focused dependencies, smaller fakes, fewer unsupported operations,
-and reduced impact from unrelated interface changes.
+**Benefits:** fewer unsupported operations, simpler callers, smaller test substitutes,
+and less impact from changes to unrelated features.
 
-**Drawbacks:** too many fragments create wiring and discovery overhead. Repeated
-casts to discover capabilities can make the design harder to follow.
+**Drawbacks:** too many tiny interfaces become hard to find and connect. Repeatedly
+asking what type an object really is can undo the clarity gained by the split.
 
-Use coherent client-oriented interfaces, templates, or capability concepts as
-appropriate. C++ concepts express syntactic requirements but do not replace
-behavioral contracts.
+**Use it by grouping:** operations around real caller needs. Small, meaningful
+interfaces are better than either one enormous interface or dozens of arbitrary fragments.
 
 ## 7. Check Your Understanding
 
-**Question:** Does an office machine implementing two interfaces violate ISP?
+**Question:** Does an office machine violate ISP because it supports both printing and scanning?
 
-**Answer:** No. ISP limits what a client is forced to depend on. A concrete device
-can truthfully provide many capabilities while clients consume only what they need.
+**Answer:** No. It can honestly provide both. The important point is that printing
+code is not forced to require scanning, and a printing-only device is not forced
+to claim a scanning ability it lacks.
 
-See the [SOLID technical notes](../../solid/README.md).
+Optional detail: [SOLID technical notes](../../solid/README.md).

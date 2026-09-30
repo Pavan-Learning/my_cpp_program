@@ -2,81 +2,95 @@
 
 ## 1. Definition
 
-Bridge is a structural pattern that separates a high-level abstraction from its
-implementation so the two can vary independently. The abstraction delegates
-implementation work through a separate interface instead of combining every
-abstraction/implementation pair into one inheritance hierarchy.
+**Bridge separates two choices that should be able to change independently, then
+connects them through an object that does the supporting work.**
+
+For example, "which shape?" and "which drawing tool?" are different choices. A circle
+should not need a separate class for every drawing technology it can use.
 
 ## 2. The Problem It Solves
 
-Suppose both device types and remote-control features vary. Separate classes for
-every combination grow rapidly: basic television remote, advanced television
-remote, basic radio remote, advanced radio remote, and so on.
+Imagine creating `VectorCircle`, `RasterCircle`, `VectorSquare`, and `RasterSquare`.
+Every new shape needs versions for each drawing tool, and every new tool needs
+versions for each shape. The combinations grow quickly.
 
-These are two axes of change. Treating every pair as a unique subtype duplicates
-logic and makes adding either axis expensive. The design should represent each
-axis directly, then connect instances through composition.
+Keep shape logic in shape classes and drawing-tool logic in drawing classes. Give
+each shape the tool it should use instead of making a class for every pair.
 
-## 3. Understand the Mechanism
+## 3. Understand the Idea Step by Step
 
-The abstraction supplies the client's high-level operations. The implementor
-interface supplies the underlying capabilities needed to perform them. Refined
-abstractions extend high-level behavior; concrete implementors provide backends.
+1. Decide which operations a shape needs from a drawing tool.
+2. Describe those operations in a common drawing interface.
+3. Supply different drawing tools that support those operations.
+4. Give a shape one tool and let it ask that tool to draw.
 
-The abstraction holds an implementor reference or owning handle. It delegates
-primitive work while retaining responsibility for its own policy. The client can
-combine an abstraction with a suitable implementation at construction time.
+A **renderer** is a drawing tool. **Vector** drawing describes shapes with lines and
+curves; **raster** drawing works with pixels. The example only returns descriptions,
+but uses those names to represent two drawing approaches.
 
-Independence depends on a stable implementor vocabulary. If every new high-level
-feature needs a new backend method, both sides still change. Bridge reduces
-unnecessary coupling; it does not guarantee arbitrary future changes are free.
+### Picture: A Shape Uses One Chosen Tool
+
+Read downward. The branches show alternative tools, not two tools used at once.
+
+```mermaid
+flowchart TD
+    Shape["1. Circle needs to be drawn"] --> Tool{"Which drawing tool was supplied?"}
+    Tool -->|Vector tool| Vector["2. Draw using lines and curves"]
+    Tool -->|Raster tool| Raster["2. Draw using pixels"]
+```
+
+**Read it as a sentence:** the circle stays a circle while the selected tool controls
+how drawing happens. The diagram's question is explanatory; the code calls the
+supplied tool through its common interface.
+
+Books call the shape side the **abstraction**, meaning the operation the caller cares
+about, and the tool side the **implementation**, meaning the supporting work. Both
+sides can grow separately only while the agreed tool operations remain sufficient.
 
 ## 4. Real-World Scenario
 
-A remote-control product line supports televisions and radios. Basic remotes offer
-power and volume; advanced remotes add a mute operation implemented through the
-same device contract. Remote features belong on one side, device-specific protocols
-on the other.
+A remote-control product supports televisions and radios. The remote's buttons
+describe user actions; each device supplies its own way to change volume or power.
+An advanced remote can add a mute button using the existing device operations.
 
-Adding another device then need not duplicate every remote feature. The common
-contract must still make sense: a device without volume cannot honestly satisfy a
-volume-dependent abstraction merely because it fits a class diagram.
+A device with no volume control cannot honestly support a promise to change volume.
+The shared operations must fit all the devices they claim to support.
 
 ## 5. Understand the C++ Example
 
 Open [bridge.cpp](../../../patterns/structural/bridge.cpp).
 
-`Shape` is the abstraction and `Circle` refines it. `Renderer` is the implementor
-interface. `VectorRenderer` and `RasterRenderer` supply two implementations.
+`Circle` is a kind of `Shape`. `Renderer` describes drawing operations.
+`VectorRenderer` and `RasterRenderer` provide the two versions.
 
-1. `main()` creates both renderers.
-2. Each circle receives a renderer reference and radius 4.
-3. `Circle::draw()` delegates to its renderer's `circle(radius_)` operation.
-4. The vector renderer returns `vector circle 4`.
-5. The raster renderer returns `raster circle 4`.
-6. Both checks verify backend selection without separate circle/backend subclasses.
+1. Create both renderer objects.
+2. Create circles of radius 4, giving each a renderer.
+3. `Circle::draw()` asks its renderer to run `circle(radius_)`.
+4. The results are `vector circle 4` and `raster circle 4`.
+5. Checks confirm the same circle logic works with either renderer.
 
-Renderers outlive circles because circles borrow them. The program returns strings,
-not pixels. Adding a rectangle would require new renderer support in this small
-interface; a richer primitive drawing vocabulary could reduce such changes.
+The circles **borrow** the renderers: they use them but are not responsible for
+destroying them. Renderers must outlive the circles. In this small interface, adding
+a rectangle would also require adding renderer support; the pattern does not make
+every future change independent automatically.
 
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** separates independent variations, reduces combination subclasses,
-and supports backend replacement and independent tests.
+**Benefits:** fewer classes for combinations; separate shape and drawing code;
+different tools can be tested or selected independently.
 
-**Drawbacks:** requires another interface and indirection. A poorly chosen backend
-contract can become a bottleneck for both sides.
+**Drawbacks:** another interface and extra calls. If the tool interface is too
+narrow, new features still force changes on both sides.
 
-Use it when two real dimensions vary. Adapter usually reconciles already-existing
-interfaces. Strategy usually substitutes an algorithm. Pimpl hides representation,
-but need not model two independently extensible hierarchies.
+**Use it when:** there really are two changing choices. Adapter is more often used
+to connect existing incompatible code; Bridge deliberately separates the choices.
+With one shape and one tool, a direct implementation may be simpler.
 
 ## 7. Check Your Understanding
 
-**Question:** Does replacing an `if` with a renderer pointer prove Bridge is useful?
+**Question:** Does simply adding a renderer pointer prove this is a useful design?
 
-**Answer:** No. Identify the independent axes and expected changes. If there is
-only one stable shape and one backend, the added structure may have no practical value.
+**Answer:** No. Identify the two choices and explain how they vary. If neither is
+likely to vary, the extra structure may only make the program harder to read.
 
-See the [structural technical notes](../../../patterns/structural/README.md).
+Optional detail: [structural technical notes](../../../patterns/structural/README.md).

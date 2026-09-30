@@ -2,89 +2,92 @@
 
 ## 1. Definition
 
-Flyweight saves memory by storing repeated information once and letting many
-objects share it. Each object still keeps the information that is different for it.
+**Flyweight saves memory by sharing repeated information instead of storing a copy
+inside every object. Each object still keeps the details that belong only to it.**
 
-For example, a thousand letters can share one font style, but each letter needs
-its own character and position. The shared part is called **intrinsic state**;
-the part kept separately for each use is called **extrinsic state**.
-
-The idea is not simply “cache objects.” It is **separate what can be shared from
-what must remain unique, then represent many objects using that shared core**.
+For example, many letters can share a font style. The letter A and letter B still
+need their own characters and screen positions.
 
 ## 2. The Problem It Solves
 
-Millions of logical objects may repeat expensive information: fonts, meshes,
-textures, formatting, or classifications. Storing the repeated information inside
-every object wastes memory. But sharing the whole object is also wrong when
-positions, identities, or other context differ.
+Imagine a document with thousands of letters. If every letter stores a full copy of
+the same font information, much of the memory repeats identical data.
 
-The design must identify the boundary between shared meaning and individual state.
-That boundary depends on the domain, not a fixed rule about field types.
+Sharing the entire letter would be wrong too: A and B must not be forced to have
+the same position. The important decision is which data can be shared and which cannot.
 
-## 3. Understand the Mechanism
+## 3. Understand the Idea Step by Step
 
-A factory keeps a collection of shared values. When asked for a style such as
-`(Mono, 12)`, it returns the existing style if one is available. Otherwise, it
-creates and stores that style. Each letter keeps a pointer to the shared style
-alongside its own character and position.
+1. Split each letter's data into shared style and individual character/position.
+2. Keep a collection of existing styles.
+3. For a requested font and size, reuse its style if it exists; otherwise create it.
+4. Let letters refer to the style instead of copying it.
 
-Shared data is usually **immutable**, meaning it cannot be changed after creation.
-Otherwise editing one shared style could unexpectedly change every letter using
-it. The lookup key must include all the shared details: looking up by font alone
-would confuse 12-point and 20-point text.
+**State** means stored information. **Intrinsic state** is the shared information,
+such as the font style. **Extrinsic state** is kept separately for each use, such
+as the letter's position. These technical names describe the two boxes of information.
 
-Sharing has a cost too: every letter needs a pointer, and finding a style takes
-work. It helps only when these costs are smaller than storing repeated copies.
-The factory also needs rules for removing unused styles and, if several threads
-use it, protecting its collection. `shared_ptr` alone does not protect that collection.
+### Picture: Two Letters, One Style
+
+Read each arrow as "uses." There is one style object, but two separate letter objects.
+
+```mermaid
+flowchart TD
+    First["Letter A at its own position"] --> Style["Shared style: Mono, size 12"]
+    Second["Letter B at a different position"] --> Style
+```
+
+**Read it as a sentence:** A and B use the same style while keeping different positions.
+
+Shared styles are usually **immutable**, meaning they are not changed after creation.
+Otherwise editing A's shared style would also change B. To give A a new appearance,
+select another style for A. The lookup must include both font and size; font alone
+would accidentally treat sizes 12 and 20 as the same style.
 
 ## 4. Real-World Scenario
 
-A map viewer displays thousands of identical category markers. Their icon geometry
-and color scheme can be shared, while coordinates and labels stay per marker.
-Changing a marker's position should not require copying the icon geometry.
+A map displays thousands of markers. Their icon image can be shared, while each
+marker keeps its own location and label. Moving a marker does not require copying
+its icon image. A differently colored marker can select another shared icon style.
 
-If users can edit one marker's appearance, the viewer can select another immutable
-style rather than mutating the shared style. Very small icons or mostly unique
-styles may not justify a flyweight pool; measurements decide whether it helps.
+If almost every icon is different, sharing may save little. Measure the memory
+saved before introducing a collection and lookup system just for this pattern.
 
 ## 5. Understand the C++ Example
 
 Open [flyweight.cpp](../../../patterns/structural/flyweight.cpp).
 
-`GlyphStyle` contains font and size. `StyleFactory` maps a `(font, size)` key to
-`shared_ptr<const GlyphStyle>`. Each `Glyph` stores character, position, and a style.
+A **glyph** is a displayed character. `GlyphStyle` holds font and size. `Glyph`
+holds its character, position, and access to a style. `StyleFactory` looks up styles.
 
-1. Requesting `(Mono, 12)` creates a style for the first glyph.
-2. Requesting the same key returns the same object for the second glyph.
-3. Requesting `(Mono, 20)` creates a different style for the heading.
-4. Pointer checks prove actual sharing, not just equal descriptions.
-5. Another check confirms positions remain independent.
-6. Output is `AB share Mono`.
+1. Request `(Mono, 12)` for the first glyph; the factory creates that style.
+2. Request the same pair for the second glyph; the factory returns the same object.
+3. Request `(Mono, 20)`; this needs a different style.
+4. Checks compare pointers to confirm actual sharing, not just equal values.
+5. Other checks confirm positions remain separate. Output is `AB share Mono`.
 
-Both glyphs and the factory own style handles. A style can outlive the factory if
-a glyph retains it. The factory keeps every created style while it lives; no
-eviction or multithreaded lookup is implemented.
+`shared_ptr<const GlyphStyle>` means several owners keep a style alive, and they
+cannot edit it through these pointers. The factory retains styles while it exists.
+The example does not remove unused styles or protect the lookup collection against
+simultaneous changes from multiple threads.
 
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** reduces repeated payload, encourages immutable sharing, and can
-improve memory locality for large populations.
+**Benefits:** fewer copies of large repeated data and a clear separation between
+shared style and individual placement.
 
-**Drawbacks:** extra handles and lookups, retention costs, more context parameters,
-and accidental shared-mutation hazards.
+**Drawbacks:** pointers and lookups also cost memory and time. Keeping every style
+forever can waste memory. Accidentally changing shared data affects many users.
 
-Use it when repetition is large enough to matter. Ordinary values are simpler for
-small populations. Weak caches can reclaim unused values but add recreation and
-expired-entry handling. An object pool reuses instances; it need not share state
-among simultaneously existing logical objects as Flyweight does.
+**Use it when:** repeated data is large enough that sharing genuinely helps. Simple
+independent values are easier for small collections. Reusing an old object after
+use, called pooling, is different from many current objects sharing one style.
 
 ## 7. Check Your Understanding
 
-**Question:** Where should a glyph's screen position live?
+**Question:** Should a letter's screen position be stored in its shared font style?
 
-**Answer:** In its extrinsic state. Putting position into a shared font style would
-make unrelated glyphs share a property that must differ for each placement.
+**Answer:** No. Letters using the same font can be in different places. Keep position
+with each letter and share only the font information that really is the same.
 
-See the [structural technical notes](../../../patterns/structural/README.md).
+Optional detail: [structural technical notes](../../../patterns/structural/README.md).

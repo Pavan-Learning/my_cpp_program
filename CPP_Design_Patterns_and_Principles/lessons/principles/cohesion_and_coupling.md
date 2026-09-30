@@ -2,78 +2,93 @@
 
 ## 1. Definition
 
-Cohesion describes how strongly a module's responsibilities belong together.
-Coupling describes the dependencies between modules. Aim to keep related state
-and behavior together while minimizing unnecessary knowledge of other modules'
-representations and implementation details.
+**Keep closely related work together, and avoid making one part know unnecessary
+details about another part.** These two ideas are called high cohesion and low coupling.
+
+**Cohesion** asks, "Do the jobs inside this part belong together?" **Coupling** asks,
+"How much does this part depend on the details of another part?"
 
 ## 2. The Problem It Solves
 
-Scattered rules make correctness depend on many callers coordinating perfectly.
-At the other extreme, a large utility object may contain unrelated work that
-changes for many reasons. Both arrangements make changes spread unpredictably.
+If every order screen changes the stock count directly, stock rules are scattered
+through the program. A storage change can force edits in all those screens.
 
-The design should put each rule with its natural owner and expose the narrow
-collaboration needed by other components.
+At the other extreme, putting stock, email formatting, and date utilities into one
+large helper groups unrelated jobs. Neither arrangement is easy to understand.
 
-## 3. Understand the Principle
+## 3. Understand the Idea Step by Step
 
-High cohesion is not simply small size. A substantial inventory class can be
-cohesive if its operations all maintain inventory meaning. A tiny helper combining
-unrelated date, network, and invoice operations can still have low cohesion.
+1. Identify data and rules that must agree, such as stock quantity and reservation checks.
+2. Keep that work in the same responsible part.
+3. Give other parts meaningful operations, such as `reserve(quantity)`.
+4. Avoid exposing internal fields merely so other code can repeat the rules itself.
 
-Low coupling is not no coupling. Useful modules collaborate. The question is
-whether a collaborator depends on a stable operation or on private fields, ordering
-assumptions, and storage details.
+High cohesion is not simply a small class. A larger stock class can remain focused
+if its operations all manage inventory. Low coupling does not mean no relationships:
+order processing still needs stock, but should not need to know its storage layout.
 
-An extra interface can reduce implementation coupling, but an elaborate protocol
-can increase conceptual coupling. Judge how much a reader must know and how far
-a real change propagates, not just how many headers are included.
+### Picture: Ask Stock to Do Stock's Job
+
+Read downward. Each arrow passes a request or result, not permission to edit private data.
+
+```mermaid
+flowchart TD
+    Order["Order asks to reserve 2 items"] --> Stock["Stock checks its quantity and updates it if possible"]
+    Stock --> Result["Order receives success or failure"]
+```
+
+**Read it as a sentence:** order processing requests a reservation; stock owns the
+decision and update. The order does not read, subtract, and overwrite the count itself.
+
+Adding an interface can help when implementations need to vary, but an interface is
+not the whole principle. A complicated set of call-order requirements can still
+make two parts strongly dependent on each other.
 
 ## 4. Real-World Scenario
 
-A warehouse service reserves inventory for orders. If every order channel reads
-stock, subtracts quantities, and writes it back itself, the stock invariant is
-distributed across callers. A reservation operation keeps the rule with inventory.
+A warehouse receives orders from a website and a support desk. Both ask the stock
+service to reserve items. Stock rules stay in one place rather than being copied
+into each order channel.
 
-For concurrent orders, that operation also needs an atomic implementation. Giving
-it a cohesive home makes enforcement possible but does not itself provide locks
-or database transaction semantics.
+If orders arrive together, the reservation must check and update safely as one
+protected action. Giving the rule a good home helps, but does not itself add locks
+or database protection.
 
 ## 5. Understand the C++ Example
 
 Open [cohesion_and_coupling.cpp](../../principles/cohesion_and_coupling.cpp).
 
-`Stock` owns count and reservation. `Fulfillment` borrows stock and requests the
-operation rather than modifying count directly.
+`Stock` keeps the count and performs reservations. `Fulfillment` represents handling
+orders and asks stock for that operation.
 
-1. Stock starts with three units.
-2. Fulfillment requests two; stock checks availability and leaves one.
-3. A second request for two fails.
-4. The failed reservation leaves the count unchanged at one.
-5. Tests verify both outcomes and print the remaining count.
+1. Start with three units.
+2. Request two units; stock accepts and leaves one.
+3. Request two again; stock rejects the request.
+4. Rejection leaves the remaining quantity at one.
+5. Checks verify both outcomes and the unchanged quantity after failure.
 
-The dependency is concrete because the small example has one implementation.
-That does not erase the useful boundary: fulfillment depends on behavior rather
-than the representation of the count.
+Fulfillment borrows the stock object, so stock must remain alive while it is used.
+The example uses the concrete `Stock` class directly because only one implementation
+is needed. The useful improvement is still real: callers rely on its operation,
+not on the field containing its count.
 
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** localized invariants, clearer ownership, smaller change impact, and
-more understandable collaborations.
+**Benefits:** rules have clear homes, internal changes affect fewer callers, and
+readers can understand each part with less knowledge of the entire system.
 
-**Drawbacks:** over-isolation introduces forwarding and coordination overhead.
-Some data and operations are genuinely shared across a use case.
+**Drawbacks:** separating too much creates unnecessary forwarding. Some work naturally
+belongs together, and attempts to remove every dependency can obscure that fact.
 
-Start with a coherent operation. Introduce a polymorphic boundary when testing,
-deployment, or implementation variation justifies it, not solely to lower a count
-of concrete dependencies.
+**Use it by asking:** what must a reader know to safely use this part, and where
+would a real rule change need to be made? Start with meaningful operations before
+adding abstract interfaces everywhere.
 
 ## 7. Check Your Understanding
 
-**Question:** Would returning `int&` to the stock count reduce coupling?
+**Question:** Would returning an editable reference to the stock count reduce coupling?
 
-**Answer:** No. It would let callers depend on storage and bypass rules. A meaningful
-reservation operation communicates less implementation knowledge and preserves ownership.
+**Answer:** No. It exposes how quantity is stored and lets callers bypass stock's
+rules. Asking for a reservation requires less internal knowledge and preserves control.
 
-See the [principles technical notes](../../principles/README.md).
+Optional detail: [principles technical notes](../../principles/README.md).

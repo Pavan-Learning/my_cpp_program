@@ -2,79 +2,100 @@
 
 ## 1. Definition
 
-Value semantics means an object behaves like an independent piece of data:
-copying produces an equivalent value whose later changes do not unexpectedly alter
-the original. The Rule of Zero recommends composing resource-managing members so
-a higher-level class needs no custom copy, move, assignment, or destructor functions.
+**Value semantics means copying an object gives an independent value: changing
+the copy does not unexpectedly change the original.** Think of copying a notebook
+and adding a note only to the new notebook.
+
+**The Rule of Zero means using member types that already manage their resources,
+so your class needs no hand-written copying, moving, assignment, or cleanup functions.**
+The two ideas work well together, but one does not automatically prove the other.
 
 ## 2. The Problem It Solves
 
-Hand-managed allocations make copies and destruction difficult to implement
-correctly. Default copying of an owning raw pointer duplicates an address rather
-than the resource, leading to shared mutation, double deletion, or leaks.
+Suppose a class owns memory through a raw pointer. An automatic copy may copy only
+the address, leaving two objects referring to the same memory. Editing one affects
+the other, and both may later try to delete the same allocation.
 
-Higher-level domain types should not repeat resource bookkeeping when suitable
-standard members already provide it.
+Use a suitable owning value such as `string` or `vector` so the stored data already
+knows how to copy and clean up correctly.
 
-## 3. Understand the Principle
+## 3. Understand the Idea Step by Step
 
-Use members with the intended semantics: strings and vectors own their elements
-as values; unique pointers represent exclusive ownership; shared pointers share
-their pointees. Compiler-generated operations compose those member behaviors.
+1. Decide what a copy should mean for your class.
+2. Choose members whose copying behavior matches that meaning.
+3. Let C++ generate the containing class's normal copy, move, and cleanup operations.
+4. Check that editing a copy has the intended independence.
 
-Rule of Zero does not automatically prove independent value semantics. A generated
-copy of a `shared_ptr` shares the object. Choose members according to the domain's
-copy meaning, not merely to avoid writing special functions.
+A **member** is a value stored inside an object. **Copy construction** creates an
+object from another. **Assignment** replaces an existing object's value. A **move**
+can transfer owned resources instead of making a full copy. A **destructor** performs
+cleanup when an object's lifetime ends.
 
-Moves transfer state efficiently where supported. A moved-from standard-library
-object remains valid but often has unspecified contents. Do not assume it is empty
-unless the specific type's contract says so.
+### Picture: Equal at First, Independent After Editing
+
+Read downward. The final boxes show the two notebooks after the copied one is edited.
+
+```mermaid
+flowchart TD
+    Start["Original notebook has one note"] --> Copy["Copy it into a second notebook"]
+    Copy --> Edit["Add another note to the second notebook"]
+    Edit --> Original["Original still has one note"]
+    Edit --> Changed["Second notebook has two notes"]
+```
+
+**Read it as a sentence:** the copy starts equal, but its later changes belong to
+the copy. This is different from two pointers naming the same notebook.
+
+Generated operations follow the members' behavior. Copying `shared_ptr` shares
+its object rather than making an independent copy. Therefore avoiding custom
+functions is not enough: the chosen members must match your intended copy meaning.
 
 ## 4. Real-World Scenario
 
-A user edits a draft copy of application preferences. Changes to the draft should
-not affect the active preferences until the user applies them. Independent values
-make cancel behavior straightforward: discard the draft.
+A settings dialog edits a draft copy of preferences. Cancel discards the draft,
+leaving active preferences unchanged. Apply replaces active preferences with the draft.
 
-A shared mutable settings pointer would instead expose edits immediately. Services
-and identity-bearing objects may deliberately use reference semantics, so copying
-is not the right abstraction for every domain object.
+If both merely pointed to the same editable settings object, typing in the dialog
+would change active settings immediately. Some objects, such as a live service or
+network connection, should not be independently copyable at all; copying must fit the job.
 
 ## 5. Understand the C++ Example
 
 Open [value_semantics.cpp](../../principles/value_semantics.cpp).
 
-`Notebook` stores `vector<string>` and declares no special resource-management
-functions. Its generated copy and move operations use the members' semantics.
+`Notebook` stores a `vector<string>`, a growable list of independently owned text
+values. It declares no custom resource-management functions.
 
-1. The original notebook receives `first`.
-2. Copy construction gives a second notebook equivalent contents.
-3. Adding `second` to the copy leaves the original size at one.
-4. Moving the copy transfers its data into another notebook with two notes.
-5. The moved-from source is assigned a fresh notebook before being reused.
-6. Static checks verify copy construction and nonthrowing move construction;
-   runtime checks verify independence and destination contents.
+1. Add `first` to the original notebook.
+2. Copy it into another notebook.
+3. Add `second` only to the copy; the original still has one note.
+4. Move the copy into another notebook, which now contains the two notes.
+5. Assign a fresh notebook to the moved-from source before reusing its contents.
+6. Compile-time checks verify supported copy/move properties; runtime checks verify values.
 
-The test intentionally does not assume a moved-from vector is empty. It checks
-what is guaranteed and reinitializes before relying on new contents.
+The standard-library members handle their own storage. A moved-from object is the
+source after a move. Many standard types promise it remains valid but do not promise
+specific contents. The example therefore does not assume the moved-from vector is empty.
 
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** predictable copies, automatic cleanup, less special-function code,
-and efficient moves from standard owning members.
+**Benefits:** predictable independent copies, automatic cleanup, less error-prone
+special-function code, and efficient moves where member types support them.
 
-**Drawbacks:** deep copies can cost memory and time; identity-bearing or
-self-referential objects need different copy policies.
+**Drawbacks:** copying large values costs time and memory. Objects containing references
+to themselves or representing unique identities may need different rules.
 
-For a raw-resource owner, consider all five special operations together or disable
-copying. Keep that complexity localized, then let enclosing classes return to
-Rule-of-Zero composition.
+**Use standard owning members when possible.** A custom low-level resource owner
+must consider destructor, copy constructor, copy assignment, move constructor, and
+move assignment together. This is often called the Rule of Five. Keep that work
+inside the owner so higher-level classes can follow the Rule of Zero.
 
 ## 7. Check Your Understanding
 
-**Question:** Would adding an owning raw `char*` preserve the current safe copying?
+**Question:** Can an owning raw `char*` be added without reconsidering copying?
 
-**Answer:** No. The generated copy would copy the address. Prefer `string` or a
-properly designed owner so ownership and copy behavior remain correct.
+**Answer:** No. A generated copy would copy the address, not the owned characters.
+Prefer `string` or a correctly designed owner so copying and cleanup retain their
+intended meaning.
 
-See the [principles technical notes](../../principles/README.md).
+Optional detail: [principles technical notes](../../principles/README.md).

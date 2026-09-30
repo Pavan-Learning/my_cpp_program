@@ -2,76 +2,95 @@
 
 ## 1. Definition
 
-Dependency injection supplies a component's collaborators from outside rather than
-having it construct or globally locate them itself. It makes the choices needed
-for an object's behavior explicit at a composition boundary.
+**Dependency Injection means giving an object the helper it needs from outside,
+instead of making it create or find that helper itself.** It is commonly shortened to DI.
+
+A **dependency** is something needed to do a job. A session-expiry checker needs
+a clock. "Injection" simply means supplying that clock, usually as a constructor argument.
 
 ## 2. The Problem It Solves
 
-An object that directly reads the wall clock, opens a database, or creates a network
-client is coupled to external conditions. Tests become slow or nondeterministic,
-and different deployments require changing internal construction logic.
+If expiry code always reads the real clock internally, testing the exact expiry
+moment may require waiting and hoping the timing lines up. Similar direct dependencies
+on a database or network can make small tests slow and unreliable.
 
-The object's core job should be separable from the choice of collaborators used
-to perform that job.
+Pass in the time source. The application can use a real clock, while a test uses
+one whose returned value the test controls.
 
-## 3. Understand the Principle
+## 3. Understand the Idea Step by Step
 
-Constructor injection makes required dependencies available for the whole valid
-lifetime. Method injection supplies a collaborator for one operation. Setter
-injection permits later replacement but may create temporarily incomplete objects.
+1. Identify the helper needed by the object.
+2. Accept that helper from the caller.
+3. Use the supplied helper when doing the object's job.
+4. Make clear who owns the helper and how long it must remain alive.
 
-Injection and ownership are independent. A constructor can receive an owned value,
-an owning pointer, or a borrowed reference. Receiving a callable by value does not
-make references captured by that callable owned.
+**Constructor injection** supplies a helper when the object is created. **Method
+injection** supplies it for one call. **Setter injection** supplies or replaces it
+later, but may leave a period when the object is not ready to use.
 
-DI is also distinct from DIP. DI describes supplying dependencies. DIP describes
-the direction and abstraction of those dependencies. Injecting a concrete vendor
-object is still DI, even if the policy remains tied to the vendor's details.
+### Picture: Give the Checker a Controllable Clock
+
+Read downward. The test supplies the source of time instead of waiting for real time.
+
+```mermaid
+flowchart TD
+    Test["1. Test chooses the current time"] --> Clock["2. Supplied clock returns that time"]
+    Clock --> Check["3. Expiry checker compares it with deadline 100"]
+    Check --> Result["Before 100: not expired; at 100 or later: expired"]
+```
+
+**Read it as a sentence:** the checker keeps its comparison rule, but the test
+controls the clock value used by that rule.
+
+Supplying a helper does not settle ownership. An object can own a helper, share it,
+or borrow it. Borrowing means using an existing helper without becoming responsible
+for keeping it alive or destroying it.
 
 ## 4. Real-World Scenario
 
-A session service decides whether a login session has expired. Reading the actual
-clock inside every decision makes boundary tests depend on timing and waiting.
-Supplying a clock lets tests evaluate just before, exactly at, and just after expiry.
+A login service checks whether a session has expired. Supplying the clock lets tests
+check the moment before the deadline, exactly at it, and after it without sleeping.
 
-Production code can supply an appropriate real clock. Duration-based deadlines
-usually need a monotonic source; civil-time deadlines have different semantics.
-Injection makes the choice visible but does not choose the correct clock for you.
+Production code must still choose an appropriate clock. Measuring an elapsed duration
+usually needs a clock that does not jump backward when the system's calendar time changes.
+DI makes that choice visible; it does not make the choice automatically correct.
 
 ## 5. Understand the C++ Example
 
 Open [dependency_injection.cpp](../../principles/dependency_injection.cpp).
 
-`Expiration` receives `std::function<int()>` as its clock dependency and rejects
-an empty callable.
+`Expiration` receives a `std::function<int()>`: an object that can be called with
+no arguments to return an integer time. An empty function is rejected.
 
-1. The test creates an integer clock at 99.
-2. A lambda capturing that integer by reference is injected into `Expiration`.
-3. For deadline 100, the result is false at 99.
-4. Changing the controlled clock to 100 makes the result true.
-5. At 101 it remains true, with no sleep or wall-clock dependency.
+1. The test creates a time variable containing 99.
+2. A **lambda**, a small function written where it is needed, reads that variable.
+3. Supply the lambda and deadline 100 to `Expiration`.
+4. At 99, expired is false.
+5. Change the variable to 100, then 101; both produce true.
+6. The checks test the exact deadline rule without waiting.
 
-The object owns the callable, but the callable borrows the integer. That integer
-must remain alive for every invocation. The comparison explicitly treats the
-deadline itself as expired, making the boundary contract testable.
+The lambda captures the time variable **by reference**, meaning it reads the original
+variable rather than storing its own copy. `Expiration` owns the function object,
+but not that referenced variable. The variable must remain alive whenever the clock is called.
 
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** deterministic tests, visible dependencies, replaceable environments,
-and centralized construction choices.
+**Benefits:** predictable tests, visible requirements, and different helpers for
+different environments without changing the main decision code.
 
-**Drawbacks:** wiring and lifetime responsibilities move to composition code;
-over-injection fragments simple operations; excessive mocks can miss real integration behavior.
+**Drawbacks:** setup must connect objects correctly and respect their lifetimes.
+Too many tiny injected helpers can make simple work hard to follow. Test helpers
+must still represent the real helper's important behavior.
 
-Use manual wiring until a container solves an actual problem. A service locator
-offers discovery but often hides mandatory dependencies instead of making them explicit.
+**Use manual setup first:** passing an argument is already DI; no framework is needed.
+Dependency Inversion is related but different: it asks that business code depend on
+a suitable service interface rather than a particular tool's details.
 
 ## 7. Check Your Understanding
 
-**Question:** Does `std::function` owning a lambda keep every captured object alive?
+**Question:** Does owning a lambda keep everything it refers to alive?
 
-**Answer:** No. A reference capture remains borrowed. The capture and ownership
-choices must match the dependency's required lifetime.
+**Answer:** No. A reference capture is still borrowed access. The referenced time
+variable must continue to exist, even though the function object itself has been stored safely.
 
-See the [principles technical notes](../../principles/README.md).
+Optional detail: [principles technical notes](../../principles/README.md).

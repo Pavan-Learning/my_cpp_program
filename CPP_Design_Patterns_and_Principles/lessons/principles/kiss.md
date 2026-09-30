@@ -2,77 +2,93 @@
 
 ## 1. Definition
 
-KISS recommends the simplest design that correctly satisfies the actual
-requirements. Simplicity means understandable behavior and few unnecessary
-concepts, not merely the shortest source code.
+**Choose the simplest design that correctly handles the actual requirements.**
+KISS is commonly used as a reminder to keep a solution simple and understandable.
+It does not mean the shortest possible code or skipping difficult cases.
+
+For example, finding the largest number in a list needs a scan, not a custom sorting
+framework. But it still needs a clear answer for an empty list.
 
 ## 2. The Problem It Solves
 
-An implementation can become harder to maintain through clever expressions,
-unneeded frameworks, excessive configuration, or custom solutions to already-solved
-problems. Every additional concept increases the effort needed to predict behavior.
+Extra classes, clever shortcuts, and unnecessary settings make readers learn more
+before they can predict the result. Reimplementing standard algorithms also creates
+more code that can contain mistakes.
 
-At the same time, omitting error handling may make code shorter but behavior less
-clear. Simplicity must be judged against the full contract, including edge cases.
+At the other extreme, returning an unexplained magic value on failure makes the
+function short but forces callers to guess. Simplicity must include clear behavior.
 
-## 3. Understand the Principle
+## 3. Understand the Idea Step by Step
 
-Start with the smallest correct model. Use standard algorithms and explicit
-representations for absence and failure. Separate exceptional cases clearly instead
-of encoding them as surprising magic values.
+1. State what the function must do, including unusual valid inputs and failures.
+2. Check whether a standard operation already solves the main problem.
+3. Represent missing answers explicitly.
+4. Add more machinery only when a real requirement justifies it.
 
-Evaluate complexity over the whole workflow. A linear scan is simple for one
-maximum query; a maintained index may be simpler operationally for millions of
-repeated queries on changing data. Requirements and measurements decide when a
-more elaborate implementation becomes justified.
+An **edge case** is an input that exposes a boundary or unusual situation, such as
+an empty collection. A **sentinel** is a special value used to signal something else.
+Returning zero for "no maximum" is a poor sentinel because zero can also be a real maximum.
 
-Simplicity is not resistance to abstraction. An abstraction that removes repeated
-reasoning can simplify a system, while one that only adds names and forwarding may not.
+### Picture: Handle Empty and Nonempty Input
+
+Read downward and choose the branch matching the collection.
+
+```mermaid
+flowchart TD
+    Input["Find the largest number"] --> Empty{"Is the collection empty?"}
+    Empty -->|Yes| None["Return no answer"]
+    Empty -->|No| Largest["Scan once and return the largest value"]
+```
+
+**Read it as a sentence:** an empty collection has no largest item; otherwise look
+through the values once and keep the largest.
+
+The simplest correct approach can change with the workload. One scan is appropriate
+for one query. Millions of repeated queries may justify maintaining extra information.
+Measure that need rather than adding complexity just because it looks advanced.
 
 ## 4. Real-World Scenario
 
-A service needs to validate a fixed configuration at startup. A small typed
-configuration reader with clear validation may suffice. Building a live plugin
-framework and expression language for those fixed options adds failure modes without
-serving a present requirement.
+A tool reads a few fixed settings at startup. A small reader with clear checks may
+be enough. Adding live plug-ins, a scripting language, and remote configuration
+creates more failure possibilities without helping its current users.
 
-If runtime reconfiguration later becomes necessary, the design can add versioning
-and synchronization deliberately. KISS does not forbid that complexity when the
-requirement actually demands it.
+If live changes become a real requirement, add the necessary update and coordination
+rules then. KISS does not forbid complexity that the actual job requires.
 
 ## 5. Understand the C++ Example
 
 Open [kiss.cpp](../../principles/kiss.cpp).
 
-`largest()` returns an optional maximum using `std::max_element`.
+`largest()` uses `std::max_element`, the standard operation for finding the largest
+element. It returns an `optional`: a value that either contains an integer or contains no answer.
 
-1. Empty input returns `nullopt`, making absence explicit.
-2. Nonempty input uses a standard linear scan.
-3. For `{-8, -2, -5}`, the maximum is -2, not an assumed initial zero.
-4. Repeated maxima such as two nines require no special case.
-5. The example prints the maximum of a known nonempty input.
+1. Empty input returns `nullopt`, meaning no answer.
+2. Nonempty input is searched with the standard algorithm.
+3. For `{-8, -2, -5}`, the answer is -2, not zero.
+4. Repeated maximum values, such as two nines, still give the correct maximum.
+5. Checks cover these cases; the program prints a known nonempty example's result.
 
-The algorithm is O(N) with constant extra space. Sorting would do unnecessary
-work and might require copying or mutating the input. Returning an optional avoids
-confusing a valid integer with an “empty” sentinel.
+The algorithm examines each item and needs only a small fixed amount of extra memory.
+This is often written as O(N) time, where N is the number of items. Sorting would do
+unnecessary work and could also require changing or copying the input.
 
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** easier review, fewer moving parts, familiar behavior, and less
-maintenance of custom algorithms.
+**Benefits:** easier reading, fewer moving parts, familiar standard behavior, and
+less custom code to maintain.
 
-**Drawbacks:** “simple” can become an excuse to ignore real performance, safety,
-or concurrency requirements. Local brevity can push complexity onto callers.
+**Drawbacks:** "simple" can be misused to ignore performance, safety, or error handling.
+A tiny function is not a good solution if it pushes confusion onto every caller.
 
-Choose the simplest complete contract and implementation. Introduce specialized
-structures when the workload demonstrates their value, not merely because they
-look more sophisticated.
+**Use it by comparing:** the whole cost of understanding and maintaining a solution,
+not just its line count. Specialized structures are reasonable when evidence requires them.
 
 ## 7. Check Your Understanding
 
-**Question:** Why not return zero for an empty collection?
+**Question:** Why not return zero when the collection is empty?
 
-**Answer:** Zero is a legitimate value and is not the maximum of negative-only
-input. Explicit absence is slightly more syntax but much clearer semantics.
+**Answer:** Callers could not tell "no answer" from a real maximum of zero. An optional
+result makes that distinction explicit and also avoids mistakes with all-negative input.
 
-See the [principles technical notes](../../principles/README.md).
+Optional detail: [principles technical notes](../../principles/README.md).

@@ -2,83 +2,93 @@
 
 ## 1. Definition
 
-Adapter is a structural pattern that translates an existing component's interface
-into the interface a client expects. It allows otherwise incompatible components
-to collaborate without requiring the client or existing component to be rewritten.
-**Preserve the component; translate how the client uses it.**
+**Adapter translates between what existing code provides and what other code expects.**
+It lets the two work together without rewriting either side.
+
+Imagine a temperature display that expects Celsius, while an old thermometer gives
+Fahrenheit. An adapter reads the old value, converts it, and gives the display Celsius.
 
 ## 2. The Problem It Solves
 
-A useful library may expose different method names, units, data formats, or error
-conventions from the application's own contract. Teaching every caller those
-differences spreads integration knowledge throughout the application. Modifying
-the library may be impossible, especially for third-party or legacy software.
+Without an adapter, every display using that thermometer must remember the conversion.
+One may forget and show 212 as if it meant Celsius. Changing the thermometer library
+may be impossible if another company provides it.
 
-The integration needs one explicit translation boundary. Matching function
-signatures alone is insufficient: the meanings of the arguments and results must
-also match what the client expects.
+Put the translation in one place. The old thermometer stays unchanged, and the
+display keeps asking for the unit it understands.
 
-## 3. Understand the Mechanism
+## 3. Understand the Idea Step by Step
 
-The **target** is the client's desired interface. The **adaptee** is the existing
-component. The **adapter** implements the target, invokes the adaptee, and converts
-inputs, outputs, and failures as needed. Clients depend on the target contract.
+1. Decide what the new caller needs: a Celsius reading.
+2. Let the adapter hold access to the old thermometer.
+3. When asked for Celsius, read Fahrenheit and convert it.
+4. Return the converted answer, not merely the original value under a new name.
 
-An object adapter holds an adaptee through composition. A class adapter uses
-inheritance to connect interfaces. Composition usually makes borrowing, ownership,
-and replacement choices more explicit.
+An **interface** describes the operations callers can use. The **target interface**
+is the expected one: read Celsius. The **adaptee** is the existing thing being adapted:
+the Fahrenheit thermometer. These names describe the roles, not extra work you must add.
 
-An adapter cannot honestly supply a guarantee the old system lacks. Wrapping a
-blocking API does not inherently make it nonblocking; renaming an operation does
-not repair different transaction semantics.
+### Picture: Follow the Temperature Value
+
+Read downward. Each arrow carries the value to the next step; this picture shows
+the answer's journey rather than the order of function calls.
+
+```mermaid
+flowchart TD
+    Old["Old thermometer gives 212 F"] --> Convert["Adapter converts Fahrenheit to Celsius"]
+    Convert --> New["Display receives 100 C"]
+```
+
+**Read it as a sentence:** the old reading goes through a conversion before the
+new display uses it. Renaming Fahrenheit as Celsius would not be a conversion.
+
+An adapter must also handle differences in errors or data formats when they matter.
+It cannot promise abilities the old system does not have simply by changing a name.
 
 ## 4. Real-World Scenario
 
-Imagine a payment service integrating a bank SDK that returns numeric status codes
-and accepts amounts in minor currency units. The application expects a typed
-payment result and a validated money value. An adapter performs conversions and
-maps known bank failures into the application's error model.
+A shop integrates a bank library that uses numeric result codes. The shop prefers
+clear results such as approved, declined, or outcome unknown. An adapter translates
+the codes so every checkout does not repeat that bank-specific knowledge.
 
-The benefit is that switching SDKs affects the boundary rather than every checkout
-caller. The difficult part is preserving meaning: a timeout may mean an unknown
-payment outcome, not a definite decline. An honest adapter keeps that distinction.
+A timeout must not automatically become "declined": the payment may have happened
+even though the reply was lost. Translation must preserve the meaning of an answer.
 
 ## 5. Understand the C++ Example
 
 Open [adapter.cpp](../../../patterns/structural/adapter.cpp).
 
-`TemperatureSensor` is the target. `LegacyThermometer` is the adaptee and exposes
-Fahrenheit. `TemperatureAdapter` implements Celsius readings while borrowing the
-legacy object.
+`TemperatureSensor` describes the Celsius operation. `LegacyThermometer` is the old
+Fahrenheit source. `TemperatureAdapter` connects them.
 
-1. Two thermometers hold 32 and 212 Fahrenheit.
-2. An adapter wraps each without changing the legacy class.
-3. Calling `celsius()` reads Fahrenheit through the wrapped object.
-4. It computes `(fahrenheit - 32) * 5 / 9` using floating-point arithmetic.
-5. Checks confirm 0 and 100 Celsius, including a call through the target interface.
-6. The program prints `100 C`.
+1. Create old thermometers with readings 32 and 212.
+2. Give each adapter access to one thermometer.
+3. Calling `celsius()` reads the old value.
+4. Calculate `(fahrenheit - 32) * 5 / 9` using decimal-capable numbers.
+5. Checks confirm results of 0 and 100; the program prints `100 C`.
 
-The adapter stores a const reference, not ownership. The thermometers must outlive
-it. This small example translates units; a real sensor adapter also needs a policy
-for stale readings, unavailable hardware, and nonfinite values.
+The adapter stores a **reference**, meaning access to the existing thermometer,
+not a copy. It does not own or destroy the thermometer. The thermometer must keep
+existing for as long as the adapter uses it. A real sensor also needs rules for
+failed readings and readings that are too old to trust.
 
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** isolates integration knowledge, supports incremental migration, and
-gives clients one consistent API.
+**Benefits:** reuse existing code; keep conversions in one place; give callers
+consistent operations and units.
 
-**Drawbacks:** adds a layer and can hide semantic mismatches if translation is
-careless. It cannot create missing capabilities without additional implementation.
+**Drawbacks:** another layer to understand, and incorrect translation can quietly
+produce wrong results. Missing features still need real implementation work.
 
-Use it for an actual mismatch. Decorator adds behavior while retaining an interface;
-Proxy controls access; Facade simplifies a subsystem. Similar wrapper structure
-does not make their intentions identical.
+**Use it when:** there is an actual mismatch. Decorator adds behavior while keeping
+the expected operations; Adapter changes how an existing component is used.
 
 ## 7. Check Your Understanding
 
-**Question:** Would forwarding Fahrenheit unchanged through `celsius()` be valid?
+**Question:** Is returning 212 from a function named `celsius()` correct for a
+thermometer reading 212 Fahrenheit?
 
-**Answer:** No. The method would compile but violate its unit contract. Correct
-adaptation preserves meaning, not just names and return types.
+**Answer:** No. The function name promises Celsius, so the answer must be 100.
+Code can compile and still give a meaningfully wrong answer.
 
-See the [structural technical notes](../../../patterns/structural/README.md).
+Optional detail: [structural technical notes](../../../patterns/structural/README.md).

@@ -2,78 +2,98 @@
 
 ## 1. Definition
 
-Observer is a behavioral pattern that establishes a one-to-many notification
-relationship: when a subject publishes a change or event, subscribed observers
-receive notification without the subject depending on their concrete types.
+**Observer lets interested listeners sign up for notifications from another object.**
+When something happens, that object tells the listeners without needing to know
+what each listener will do with the information.
+
+For example, a temperature sensor can notify a display and a recorder. The sensor
+does not need to contain screen-drawing code or file-writing code.
 
 ## 2. The Problem It Solves
 
-One state change may interest several independent consumers, such as a display,
-alarm, recorder, and analytics component. Hardcoding all consumers into the producer
-makes it responsible for unrelated behavior and difficult to extend.
+If the sensor directly knows every display, alarm, and recorder, adding a new use
+for readings requires changing the sensor. It becomes responsible for many unrelated jobs.
 
-The producer should describe what happened. Consumers should independently decide
-what that event means for them, with subscription controlling who participates.
+Instead, let interested code register a function to call when a reading arrives.
+Listeners can join or leave while the sensor keeps its one job: publishing readings.
 
-## 3. Understand the Mechanism
+## 3. Understand the Idea Step by Step
 
-Observers register a callback or observer interface with the subject. The subject
-retains the subscription and invokes it when publishing. Unsubscription ends that
-relationship. Events may push data directly, or observers may query the subject
-after receiving a change notification.
+1. A listener subscribes, meaning it asks to receive future events.
+2. The sensor keeps the supplied function and returns an identifier for that subscription.
+3. Publishing a reading calls the currently eligible listener functions.
+4. Unsubscribing removes a listener using its identifier.
 
-Delivery rules are part of the design: synchronous or queued, ordered or unordered,
-and fail-fast or isolated when callbacks throw. Subscription changes during delivery
-must also have defined semantics. An observer pattern diagram does not answer
-these questions automatically.
+A **callback** is a function you give other code to call later. A **token** is the
+identifier used to remove one subscription. The publishing object is often called
+the **subject**, and its listeners are the **observers**.
+
+### Picture: One Reading Reaches Several Listeners
+
+Read each arrow as "sends the reading to." Both listeners receive the same event.
+
+```mermaid
+flowchart TD
+    Sensor["Sensor publishes 21 degrees"] --> Display["Display updates its shown temperature"]
+    Sensor --> Recorder["Recorder stores the reading"]
+```
+
+**Read it as a sentence:** the sensor announces one value, and each subscribed
+listener decides what to do with it.
+
+Decide the delivery rules explicitly. Do listeners run immediately or later? What
+if one removes itself, adds another listener, or fails? The pattern's name does not
+answer those questions. The code below chooses specific rules for this example.
 
 ## 4. Real-World Scenario
 
-A building-monitoring system publishes room temperatures. A dashboard refreshes
-its view, an alarm component evaluates thresholds, and a recorder stores history.
-The sensor source does not implement any of those consumer responsibilities.
+A building monitor sends room temperatures to a dashboard, an alarm, and a history
+recorder. Each listener owns a different response to the same reading.
 
-A slow recorder should not accidentally block safety-sensitive processing. A
-production design may therefore use queues and separate execution contexts, with
-explicit backpressure and delivery guarantees. That is additional infrastructure
-beyond an in-process synchronous observer list.
+If recording is slow, calling it immediately could delay other work. A production
+system may queue notifications for later processing, but then must decide how to
+handle delays, full queues, and lost readings.
 
 ## 5. Understand the C++ Example
 
 Open [observer.cpp](../../../patterns/behavioral/observer.cpp).
 
-`Sensor` stores callbacks under numeric tokens. `subscribe()` returns a token;
-`unsubscribe()` removes it. `publish()` snapshots tokens before delivering values.
+`Sensor` stores callback functions indexed by subscription tokens. `publish()` first
+copies the current tokens, then looks each one up before calling its callback.
 
-1. A display callback records readings 20 and 21.
-2. A one-shot callback removes its own subscription after receiving 20.
-3. The second publication skips that removed token.
-4. Removing the display prevents it receiving 22.
-5. Another callback adds a subscriber during publication; it receives only later events.
+1. A display listener records readings 20 and 21.
+2. A one-time listener removes itself after receiving 20.
+3. It is no longer called for 21.
+4. Removing the display listener prevents it receiving 22.
+5. A listener added during publication waits until a later publication.
 
-Each token is looked up immediately before invocation, so removed subscriptions
-are skipped. The callable is copied before invoking it, protecting an executing
-callback from self-removal. Consequently, mutable state captured by value changes
-in that invocation's copy, not persistently in the stored callable. The example
-captures externally owned state by reference and keeps it alive during publication.
+The callback itself is copied before the call, so removing its subscription does
+not destroy the function currently running. This has a detail worth knowing: data
+stored inside that function copy is changed only in the copy. The sample instead
+refers to outside variables that remain alive during the calls.
+
+Delivery is **synchronous**, meaning calls run immediately before publishing returns.
+An exception from one callback leaves that publication early, so later listeners may
+not run. Multiple threads cannot safely modify this listener collection without extra protection.
 
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** loosely coupled consumers, dynamic subscriptions, and reusable event
-sources with no concrete listener knowledge.
+**Benefits:** new listeners do not require editing the sensor; listeners can join
+and leave; each listener keeps its own response code.
 
-**Drawbacks:** indirect control flow, dangling captures, reentrancy, callback errors,
-and possible ownership cycles. This implementation is synchronous and not thread-safe.
+**Drawbacks:** indirect calls are harder to follow; callbacks may refer to destroyed
+objects; slow or failing listeners can affect delivery. Notifications that publish
+again from inside a callback also need careful rules.
 
-Use a direct call when there is one fixed collaborator. Mediator coordinates a
-workflow; Observer distributes notifications. A brokered publish/subscribe system
-adds transport and delivery semantics beyond the local pattern.
+**Use it when:** several independent listeners need events. One direct function call
+is simpler for one fixed recipient. Mediator goes further by deciding how several
+objects should coordinate in response to events.
 
 ## 7. Check Your Understanding
 
-**Question:** What happens if one callback throws here?
+**Question:** What happens if a callback throws an exception in this example?
 
-**Answer:** The exception propagates and later callbacks in that publication may
-not run. A system requiring listener isolation needs an explicit different policy.
+**Answer:** The error leaves `publish()`, and later callbacks may not run. A system
+that must notify everyone despite one failure needs a different, explicit error policy.
 
-See the [behavioral technical notes](../../../patterns/behavioral/README.md).
+Optional detail: [behavioral technical notes](../../../patterns/behavioral/README.md).

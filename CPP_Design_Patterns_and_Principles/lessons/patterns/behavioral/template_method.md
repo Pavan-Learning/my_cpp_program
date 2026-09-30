@@ -2,81 +2,98 @@
 
 ## 1. Definition
 
-Template Method is a behavioral pattern that defines an algorithm's overall
-structure in a base class while allowing subclasses to specialize selected steps.
-The skeleton remains shared; the permitted steps vary.
+**Template Method writes a fixed sequence of steps once and lets more specific
+classes supply selected steps.** The order remains shared; some details vary.
 
-The word “template” refers to an algorithmic template, not necessarily a C++
-`template` declaration.
+For example, report generation checks the input, creates a header, creates the body,
+and creates a footer. A text report and a web report need different content but can
+follow the same sequence.
+
+The word "template" means a reusable outline here. It does not require the C++
+`template` language feature used for generic types and functions.
 
 ## 2. The Problem It Solves
 
-Several operations may share a required sequence while differing in details.
-Copying that sequence into each implementation leads to inconsistent validation,
-ordering, and cleanup. Letting every implementation replace the whole algorithm
-makes shared rules difficult to enforce.
+If each report copies the entire sequence, one may forget validation or call steps
+in a different order. Fixing the common process would require fixing every copy.
 
-The base class should own the sequence and expose deliberate customization points,
-rather than expecting each subclass to remember every common rule.
+Keep the sequence in one base class and expose only the steps intended to vary.
+A **base class** is a class extended by other classes; those extensions are **derived classes**.
 
-## 3. Understand the Mechanism
+## 3. Understand the Idea Step by Step
 
-A template method calls primitive operations in a defined order. Required steps
-can be abstract; optional hooks can have default implementations. Subclasses
-override the variable pieces, while clients invoke the shared top-level operation.
+1. Write one top-level function containing the required order.
+2. Make it call separate functions for the customizable steps.
+3. Let derived classes supply those functions.
+4. Make callers use the shared top-level function.
 
-The base class is responsible for its promises, including validation before hooks.
-Subclass hooks are responsible for their own narrower contracts. Too many hooks
-can make the skeleton as unpredictable as unrestricted overriding.
+A **virtual function** allows a derived class to supply its own version, called an
+**override**. A **hook** is a step intended for customization. Some hooks are required;
+others provide a default that a derived class may keep.
 
-Mandatory resource cleanup should rely on RAII, not a final hook that is skipped
-when an earlier step throws. Inheritance also creates lifecycle constraints: base
-constructors do not invoke fully constructed derived behavior through virtual calls.
+### Picture: Change the Content, Keep the Order
+
+Read downward. Every report follows this order; the chosen report class supplies
+the content of the three middle formatting steps.
+
+```mermaid
+flowchart TD
+    Check["1. Check the input"] --> Header["2. Make the header"]
+    Header --> Body["3. Make the body"]
+    Body --> Footer["4. Make the footer"]
+    Footer --> Result["5. Join the pieces into a report"]
+```
+
+**Read it as a sentence:** check first, then header, body, footer, and combine.
+Invalid input stops at the first step; formatting does not begin.
+
+A fixed sequence does not guarantee its last step runs after an error. If making
+the body throws an exception, execution skips the ordinary footer call. Required
+cleanup must be handled separately, usually by C++ objects that clean up on destruction.
 
 ## 4. Real-World Scenario
 
-A data-import framework follows validate-source, read-records, normalize, and store.
-CSV and binary importers specialize how records are read, while the framework
-retains shared validation and storage orchestration.
+A data-import tool validates a source, reads records, normalizes them, then stores
+them. Text and binary importers can provide different reading steps while reusing
+the overall process.
 
-This fits a framework deliberately extended through subclasses. If users need to
-combine independently chosen readers, normalizers, and writers at runtime,
-composition with strategies may fit better than another subclass for each combination.
+If users need to mix independent readers, normalizers, and writers freely, supplying
+separate helper objects may be simpler than a derived class for each combination.
 
 ## 5. Understand the C++ Example
 
 Open [template_method.cpp](../../../patterns/behavioral/template_method.cpp).
 
-`Report::generate()` is the nonvirtual skeleton. `header()` and `body()` are required
-hooks; `footer()` has a default newline. CSV and HTML specialize formatting.
+`Report::generate()` holds the sequence. `header()` and `body()` must be supplied
+by a derived report. `footer()` has a default newline.
 
-1. `generate(42)` first checks that the total is nonnegative.
-2. It calls header, body, and footer in separate statements, guaranteeing that order.
-3. CSV produces `total\n42\n` using the default footer.
-4. HTML supplies its own footer and produces `<p>42</p>\n`.
-5. `TracedReport` records `HBF`, verifying actual hook order.
-6. A negative input is rejected before any hook runs.
+1. `generate(42)` checks that 42 is not negative.
+2. It calls header, body, and footer in three separate statements.
+3. The CSV report produces `total\n42\n`; `\n` means a line break.
+4. The HTML report produces `<p>42</p>\n` with its own footer.
+5. A test report records `HBF`, proving header ran before body and body before footer.
+6. A negative value is rejected before any formatting hook runs.
 
-Separate statements matter because joining multiple hook calls in one expression
-would not provide the same portable evaluation-order guarantee in C++17.
+The separate statements are important in C++17. Combining all three function calls
+in one addition expression would not guarantee their evaluation in that same order.
+The shared `generate()` is nonvirtual, meaning derived classes do not override that sequence.
 
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** shared sequencing and validation, focused subclass extension, and
-reduced duplicated algorithm structure.
+**Benefits:** common order and checks are written once; derived classes focus on
+their differences; sequence fixes have one main home.
 
-**Drawbacks:** inheritance coupling, fragile hook contracts, and limited runtime
-recombination. A base change can affect every subclass.
+**Drawbacks:** changes to the base can affect every derived class. Too many hooks
+make behavior difficult to predict. Independent pieces are harder to recombine while running.
 
-Use it for a genuinely stable skeleton. Strategy composes interchangeable policies;
-the nonvirtual-interface idiom similarly guards a public operation around virtual
-implementation hooks.
+**Use it when:** the order is genuinely stable and derived classes are a natural fit.
+Strategy instead supplies a separate replaceable object or function to do a job.
 
 ## 7. Check Your Understanding
 
-**Question:** Can a footer hook guarantee cleanup after a body exception?
+**Question:** Can the footer hook reliably release a resource if making the body fails?
 
-**Answer:** No. Normal execution never reaches the footer in that case. Put
-resource cleanup in RAII owners or another deliberate exception-safe mechanism.
+**Answer:** No. Execution may never reach the footer. Use a resource-owning object
+whose destructor releases the resource during normal exit and exception cleanup.
 
-See the [behavioral technical notes](../../../patterns/behavioral/README.md).
+Optional detail: [behavioral technical notes](../../../patterns/behavioral/README.md).

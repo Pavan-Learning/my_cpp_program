@@ -2,80 +2,95 @@
 
 ## 1. Definition
 
-Chain of Responsibility is a behavioral pattern that passes a request through a
-sequence of handlers. Each handler decides whether to handle, reject, transform,
-or forward the request according to the chain's contract. The sender does not
-need to know which concrete handler ultimately resolves it.
+**Chain of Responsibility passes a request through a series of objects. Each object
+decides whether to deal with it, reject it, or pass it to the next one.**
+
+Imagine an online request that must first prove the user is signed in, then check
+that the user has not exceeded a usage limit. A failed check stops the request.
+Each object performing a step is called a **handler**.
 
 ## 2. The Problem It Solves
 
-A request may require several independently changing checks or may need escalation
-until a capable receiver is found. Hardcoding all decisions in the sender couples
-it to every processing detail. Copying those decisions across senders causes drift.
+Putting all checks into every place that sends requests repeats the rules. One
+caller may forget a check or use a different order. A single giant checking function
+can also become difficult to change when different requests need different steps.
 
-The desired flexibility is the sequence of processing responsibilities. Moving
-that sequence into composable handlers lets senders focus on submitting requests.
+Put each check in its own handler and connect the handlers in the required order.
+The sender only needs to submit the request to the beginning of the chain.
 
-## 3. Understand the Mechanism
+## 3. Understand the Idea Step by Step
 
-Each handler knows its successor rather than the entire application. It performs
-its local decision and either returns a result or delegates onward. Assembly code
-selects the handlers and their order.
+1. A handler receives the request.
+2. It performs its own check or work.
+3. If processing should stop, it returns a result immediately.
+4. Otherwise it passes the request to the next handler.
+5. Define what happens when there is no next handler.
 
-There are important variants. In a first-capable-handler chain, one handler consumes
-the request. In a filtering chain, every successful filter forwards it and any
-filter may reject it. End-of-chain behavior must be explicit: success, unhandled,
-or failure are different contracts.
+There are two common versions. An approval chain stops when someone can approve.
+A checking chain continues only while every check passes. Do not confuse these
+rules: reaching the end might mean approved in one system and unhandled in another.
 
-Ordering is observable. A validation handler may protect later steps from invalid
-input. Authentication before account-specific processing may prevent disclosure.
-The pattern makes ordering configurable, not automatically correct.
+### Picture: The Successful Checking Path
+
+Read downward. An arrow means "continue only if this check passed."
+
+```mermaid
+flowchart TD
+    Request["1. Receive the request"] --> Login["2. Check the user is signed in"]
+    Login --> Limit["3. Check the usage limit"]
+    Limit --> Accept["4. Accept the request"]
+```
+
+**Read it as a sentence:** a request passes sign-in, then usage-limit checks, then
+is accepted. If either check fails, stop there; the remaining boxes do not run.
+
+Order is part of the behavior. For example, checking sign-in first can avoid revealing
+account information to an unknown user. Allowing configurable order does not make
+every order correct.
 
 ## 4. Real-World Scenario
 
-An expense request is considered by a team lead, then a department manager, then
-finance. Each role can approve up to a limit; larger requests move onward. The
-submission form does not encode every approval limit.
+An employee submits an expense. A team lead can approve small expenses; larger ones
+go to a manager, then finance. Each person either approves or passes it onward.
+The submission form need not know every approval limit.
 
-That is a first-capable-handler chain. A web request pipeline applying authentication,
-quota, and input checks is the filtering variation. Do not assume one variation's
-terminal behavior is suitable for the other, especially when approval is sensitive.
+This approval example differs from the code below: one person handles the request,
+whereas the code requires all checks to pass. Both need an explicit end-of-chain rule.
 
 ## 5. Understand the C++ Example
 
 Open [chain_of_responsibility.cpp](../../../patterns/behavioral/chain_of_responsibility.cpp).
 
-`Handler` owns its successor. `Authentication` and `Quota` inspect different fields
-of a request. `then()` assembles the filtering chain.
+`Handler` contains the next handler. `Authentication` checks the sign-in flag.
+`Quota` checks the usage-limit flag. `then()` connects them.
 
-1. `main()` creates authentication and gives it ownership of a quota handler.
-2. An unauthenticated request returns `unauthorized` immediately.
-3. An authenticated request is delegated to quota.
+1. Connect authentication first and quota second.
+2. A request without authentication returns `unauthorized` immediately.
+3. A signed-in request continues to the quota check.
 4. Exceeded quota returns `quota exceeded`.
-5. A request passing both checks reaches the base terminal result, `accepted`.
-6. Checks verify all three paths, including the first rejection taking precedence.
+5. Passing both reaches the final `accepted` result.
+6. Checks cover all three results and confirm the first failure wins.
 
-The booleans simulate decisions; they do not implement authentication. The sample
-accepts at the end. A production security chain may instead need a deny-by-default
-terminal policy and verification that mandatory handlers are present.
+The first handler owns the next one, meaning it is responsible for its cleanup.
+The yes/no fields simulate decisions; they do not verify real credentials. A real
+security system may need to reject by default and ensure required checks cannot be omitted.
 
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** independent handlers, reusable processing steps, configurable order,
-and reduced sender knowledge.
+**Benefits:** reusable checks, fewer details in senders, and an easy place to change
+the order or selection of steps when that flexibility is genuinely needed.
 
-**Drawbacks:** requests can go unhandled, order is easy to misconfigure, and long
-chains complicate debugging. Repeated forwarding can hide control flow.
+**Drawbacks:** incorrect ordering can change results or weaken security. Requests
+may reach the end without anyone handling them. Long chains can be hard to trace.
 
-Use it when handlers genuinely vary. A fixed sequence of a few ordinary functions
-may be clearer. Observer broadcasts an event; a chain normally controls onward
-processing and can stop it.
+**Use it when:** handlers or their order need to vary. A short fixed list of ordinary
+function calls can be clearer when no such variation is required.
 
 ## 7. Check Your Understanding
 
 **Question:** Does every handler always run?
 
-**Answer:** No. The contract determines forwarding. Here a rejection returns before
-later handlers run, which is why the first failing condition controls the result.
+**Answer:** No. In this example, a rejection stops immediately. A request that is not
+signed in never reaches the quota handler, even if its quota flag would also fail.
 
-See the [behavioral technical notes](../../../patterns/behavioral/README.md).
+Optional detail: [behavioral technical notes](../../../patterns/behavioral/README.md).

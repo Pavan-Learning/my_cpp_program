@@ -2,78 +2,98 @@
 
 ## 1. Definition
 
-Immutability means a value's observable content does not change after creation;
-transformations produce new values. A functional core computes results from inputs
-without external side effects, while an imperative shell performs necessary I/O
-and state updates around it.
+**An immutable value is not changed after it is created. An operation that would
+edit it produces a new value instead.** Existing users can keep seeing the old value.
+
+For example, adding ` reviewed` to a document version creates a new version containing
+`draft reviewed`, while the original still contains `draft`.
+
+A **functional core** is the part of a program that calculates results from supplied
+inputs without changing outside data or performing input/output. Other code handles
+necessary actions such as reading files and saving the chosen result.
 
 ## 2. The Problem It Solves
 
-Shared mutable state makes behavior depend on who changed a value most recently.
-Aliases can observe surprising changes, tests become order-sensitive, and concurrent
-readers need coordination with writers.
+If several parts share editable data, one part can change what another is reading.
+Understanding an answer then requires knowing who changed the value and when.
+Tests may even affect each other through shared changes.
 
-Keeping old values unchanged makes reasoning more local: a result depends on its
-inputs rather than a hidden mutation history.
+Keeping old values unchanged makes results easier to follow. The new result is
+separate from the input instead of silently replacing its contents.
 
-## 3. Understand the Principle
+## 3. Understand the Idea Step by Step
 
-Distinguish an immutable value from an unchangeable variable. A variable may be
-assigned a new whole value while each produced version is treated as independent.
-Also distinguish shallow constness from an immutable reachable object graph.
+1. Create a value with valid contents.
+2. Expose ways to read it, not unrestricted ways to edit it.
+3. Make transformations return new values.
+4. Let the caller decide whether to keep the old value, the new one, or both.
 
-A const method can modify `mutable` state or objects reached through references.
-A const smart pointer can still point at mutable data. Genuine shared immutability
-requires controlling mutable aliases, not just adding `const` at one level.
+An **alias** is another way to reach the same object, such as a second pointer.
+An **external side effect** is an observable change outside a calculation, such as
+editing a shared variable or writing a file. Avoiding those effects in the calculation
+makes it easier to check using only inputs and expected outputs.
 
-Immutable data reduces synchronization needs for readers, but publication, lifetime,
-and replacement still require safe coordination. It is not a blanket guarantee of
-thread safety for the surrounding system.
+### Picture: Keep the Old Version and Produce a New One
+
+Read the branches as two values that can exist together, not a change to the old object.
+
+```mermaid
+flowchart TD
+    Original["Start with draft"] --> Keep["Original version stays draft"]
+    Original --> Append["Append reviewed into a new version"]
+    Append --> New["New version contains draft reviewed"]
+```
+
+**Read it as a sentence:** appending returns a second version; readers of the first
+version do not suddenly see different text.
+
+A variable may still be assigned an entirely new value. That differs from editing
+an existing version through `append()`. Also, `const` at one place does not prevent
+another pointer from changing shared data. All editable access must be considered.
 
 ## 4. Real-World Scenario
 
-A configuration service builds a complete validated configuration version, then
-publishes it to request handlers. Existing requests continue using their old version,
-while new requests use the new one. No request observes half an update.
+A service builds a complete new configuration and makes it available to new requests.
+Requests already running keep their old version, so none sees half an update.
 
-The pointer publication and old-version lifetime must be synchronized. Large
-versions can share immutable substructures, but retaining too many versions costs
-memory. These are explicit tradeoffs rather than reasons to mutate shared fields ad hoc.
+Switching which version is current and keeping old versions alive still require safe
+coordination. Read-only values help readers, but do not automatically make every
+operation involving their pointers safe across threads.
 
 ## 5. Understand the C++ Example
 
 Open [immutability.cpp](../../principles/immutability.cpp).
 
-`DocumentVersion` exposes text for reading and an `append()` transformation that
-returns a new version instead of modifying its receiver.
+`DocumentVersion` offers text for reading and an `append()` function returning a new version.
 
-1. The original contains `draft`.
-2. Appending ` reviewed` constructs a new string and a new version.
-3. Checks confirm the original is still `draft`.
-4. The new version contains `draft reviewed`.
-5. An empty append produces equivalent content without changing the original.
+1. Create a version containing `draft`.
+2. Call `append(" reviewed")` to create another version.
+3. A check confirms the original still contains `draft`.
+4. Another confirms the new text is `draft reviewed`.
+5. Appending an empty string also leaves the original unchanged and gives equal text.
 
-The public API does not offer in-place text mutation. Ordinary whole-object
-assignment remains possible for a nonconst variable. The returned text reference
-borrows the version's lifetime and must not be kept after destruction.
+The public operations do not offer an in-place text edit. A nonconst variable can
+still be assigned a different whole `DocumentVersion`. The text-reading function
+returns a reference to existing text, so that reference cannot safely outlive its version.
 
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** predictable aliases, easy snapshots, deterministic transformations,
-and simpler reasoning about concurrent reads after safe publication.
+**Benefits:** predictable versions, simple snapshots, fewer surprises for shared
+readers, and calculations that are easier to test.
 
-**Drawbacks:** copying and retained versions can consume time and memory. Persistent
-structures reduce copying but add implementation complexity.
+**Drawbacks:** copying data and retaining old versions can consume time and memory.
+Sharing unchanged portions can reduce copying but introduces more complex storage rules.
 
-Use mutation inside a clear exclusive-ownership boundary where it is simpler and
-measured performance warrants it. Immutability is a powerful default for shared
-values, not a requirement to copy every buffer on every operation.
+**Use it where helpful:** especially for shared values and calculations. Changing
+data privately inside one clear owner can be simpler and faster for some workloads.
+Immutability is not a demand to copy every large buffer after every small operation.
 
 ## 7. Check Your Understanding
 
-**Question:** Does `shared_ptr<string>` guarantee immutable versions?
+**Question:** Does `shared_ptr<string>` make a string immutable?
 
-**Answer:** No. Another owner can mutate the same string. Shared immutable storage
-needs an immutable contract and no remaining mutable aliases.
+**Answer:** No. It shares ownership, not read-only behavior. Another owner can change
+the same string. Safe shared immutable data requires a promise that no remaining
+editable access will change it.
 
-See the [principles technical notes](../../principles/README.md).
+Optional detail: [principles technical notes](../../principles/README.md).

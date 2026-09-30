@@ -2,93 +2,102 @@
 
 ## 1. Definition
 
-The Dependency Inversion Principle says that the important rules of an application
-should not be tied directly to a particular database, network library, or device.
-Instead, the rules describe the service they need through an interface, and the
-chosen database or device code implements that interface.
+**Business rules should ask for the service they need instead of being tied to a
+particular database, device, or external library.** This is the Dependency Inversion
+Principle, shortened to DIP.
 
-**In simple words:** business code asks for a job to be done without needing to
-know which tool does it. For example, a warehouse asks for an item's stock count
-without knowing whether the answer comes from memory or a database.
-
-The technical names are **high-level policy** for the business rules,
-**low-level details** for tools such as database drivers, and **abstraction** for
-the interface between them.
+For example, a warehouse deciding whether an item is available needs a stock count.
+It should not need to know database table names just to make that decision.
 
 ## 2. The Problem It Solves
 
-A business rule that directly constructs a database driver or invokes a vendor
-SDK inherits that detail's API, lifecycle, and testing requirements. Changing
-infrastructure can force changes to business behavior, and testing a simple
-decision may require an entire external service.
+If warehouse code constructs a specific database driver, even a simple test may
+need that database running. Switching storage can also force changes to business decisions.
 
-The dependency direction should allow details to serve policy rather than making
-policy fit whatever a particular detail happens to expose.
+Define the needed service in terms the warehouse understands, such as "available
+quantity for this item." Let storage code provide that service.
 
-## 3. Understand the Principle
+## 3. Understand the Idea Step by Step
 
-First describe what the business code needs, such as `available(item)`. That
-interface is a **contract**: it states what callers may ask and what answers or
-errors they can expect. The business code uses the interface; storage code provides
-an implementation. Setup code, often in `main()`, connects the two.
+1. Write down the operation the business rule needs.
+2. Describe it in an interface, including important results and failure behavior.
+3. Make the business code use that interface.
+4. Make the selected storage tool implement it.
+5. Connect the business object and storage object in setup code, often `main()`.
 
-That setup location is sometimes called a **composition point**. It chooses the
-actual objects so the business code does not have to choose them itself.
+| Technical term | Plain meaning here |
+| --- | --- |
+| Dependency | Something another part needs to do its work |
+| High-level policy | The business decision, such as whether stock is available |
+| Low-level detail | The particular database or other tool that supplies data |
+| Abstraction | The small interface describing the needed service |
+| Inversion | The tool fits the business-facing interface instead of the business code following the tool's API |
 
-Keep the interface near the business code or in a shared contract module. If the
-interface exposes all the database driver's commands and types, business code still
-needs to understand that driver. Adding virtual functions alone has not removed
-the unwanted dependency.
+### Picture: A Question Without Database Details
 
-Dependency injection supplies an object from outside; DIP governs what the policy
-depends on. Injecting a concrete database is DI but still leaves concrete coupling.
-A DI container is optional; manual constructor wiring can express both ideas clearly.
+Read arrows as "asks the next part." The warehouse knows the stock question, not
+the storage commands used to answer it.
+
+```mermaid
+flowchart TD
+    Warehouse["Warehouse asks: how many books are available?"] --> Service["Stock service promises to answer that question"]
+    Service --> Tool["Chosen storage reader supplies the count"]
+```
+
+**Read it as a sentence:** the warehouse asks for a count through an agreed service;
+the selected reader does the storage work. This picture shows calls, not C++ inheritance.
+
+The interface should express business needs. If it exposes every command and type
+from a specific database library, the business code still needs database knowledge.
+Adding virtual functions alone does not remove that dependence.
 
 ## 4. Real-World Scenario
 
-A reservation service needs to ask whether capacity can be reserved. Its business
-logic should not know SQL table layouts or HTTP client details. A reservation port
-defines the needed atomic outcome, and database or remote adapters implement it.
+A reservation service needs to reserve one seat if one is available. A database
+implementation and a test implementation can both offer that operation.
 
-The contract must reflect reality. Replacing an atomic reservation with a stale
-availability query breaks semantics even if both adapters compile. Fakes and real
-implementations need shared contract tests, not just interchangeable method names.
+They must promise the same thing. Merely reporting an old seat count is not equivalent
+to checking and reserving together. That combined action needs protection so two
+requests cannot both claim the same last seat.
 
 ## 5. Understand the C++ Example
 
 Open [dip.cpp](../../solid/dip.cpp).
 
-The before warehouse contains a concrete simulated `SqlStock`. The after warehouse
-depends on `StockReader`, implemented by a configurable `MemoryStock`.
+The old warehouse contains a specific simulated `SqlStock`. The new warehouse uses
+the `StockReader` interface. `MemoryStock` supplies counts from memory for the example.
 
-1. One memory reader contains three books; another is empty.
-2. Each reader is injected into a warehouse constructor.
-3. `can_ship()` asks only for available quantity and tests whether it is positive.
-4. The stocked warehouse returns true for `book`.
-5. The empty warehouse and unknown-item query return false.
-6. Tests exercise those policy outcomes without database infrastructure.
+1. Create one reader containing three books and another with no stock.
+2. Pass each reader to a warehouse when constructing it.
+3. `can_ship()` asks for the quantity and checks whether it is greater than zero.
+4. The stocked warehouse answers true for `book`.
+5. The empty warehouse and an unknown item answer false.
+6. Checks test these decisions without starting a database.
 
-The warehouse borrows its reader, which must outlive it. The sample is an availability
-query, not an atomic shipment guarantee. It demonstrates dependency direction while
-deliberately simplifying storage and concurrency.
+The warehouse borrows its reader, so the reader must remain alive. This example
+only checks availability; it does not reserve stock or guarantee a later shipment.
+
+Passing the reader in is **dependency injection**: supplying a helper from outside.
+DIP is the separate decision to depend on a suitable interface. Passing a specific
+database object can be injection without removing database-specific dependence.
 
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** policy tests without infrastructure, replaceable details, visible
-dependencies, and business-oriented contracts.
+**Benefits:** test business decisions without external services, replace storage
+details more easily, and make required services explicit.
 
-**Drawbacks:** more interfaces and wiring, possible mismatch between fakes and real
-adapters, and overengineering if every stable value receives an abstraction.
+**Drawbacks:** more interfaces and setup. A test reader may misrepresent real storage
+behavior unless both are checked against the same promises.
 
-Use DIP at meaningful effect or change boundaries. Templates and callable contracts
-can also express inverted dependencies; virtual interfaces are not mandatory.
+**Use it for:** important boundaries that perform outside work or are likely to change.
+Do not invent an interface for every simple value merely to follow a slogan.
 
 ## 7. Check Your Understanding
 
-**Question:** Should database timeout be reported as zero available stock?
+**Question:** Should a database timeout automatically be reported as zero stock?
 
-**Answer:** Not unless that is the explicit contract. An outage and genuine absence
-have different meanings. A useful abstraction preserves important failures instead
-of disguising them to keep its interface superficially simple.
+**Answer:** No. "Could not get the answer" differs from "the answer is zero."
+The interface should preserve that distinction unless the application deliberately
+defines and accepts a different rule.
 
-See the [SOLID technical notes](../../solid/README.md).
+Optional detail: [SOLID technical notes](../../solid/README.md).

@@ -2,90 +2,101 @@
 
 ## 1. Definition
 
-Design by Contract means writing down what a function expects and what it promises
-in return. It also states the rules that an object must keep while it is used.
-For example: a discount must be between 0% and 100%, and an invalid discount must
-be rejected before a calculation uses it.
+**State what an operation expects, what it promises, and which values are valid.**
+That agreement is a **contract**. It lets callers and implementations understand
+their responsibilities instead of guessing.
 
-**Fail fast** means reporting bad input close to where it enters the program, not
-letting it cause a confusing error later. **Strong types** give different kinds of
-values different types, such as `Percentage` and `Money`, so they are harder to mix up.
+**Fail fast** means reject bad input near where it arrives, before it causes a
+confusing later problem. **Strong types** give different meanings distinct types,
+such as `Percentage` and `Money`, instead of treating all numbers as interchangeable.
 
 ## 2. The Problem It Solves
 
-A bare integer might mean percent, kilograms, or cents. Without clear contracts,
-invalid values travel through the program until they trigger a distant failure or
-produce plausible but incorrect results. Repeated informal checks drift between callers.
+The number 150 might be a valid amount in cents but an invalid discount percentage.
+If everything is an unchecked integer, code can accept meaningless values or mix units.
+The mistake may appear much later as a believable but incorrect bill.
 
-The design should make validity and meaning explicit at the relevant boundaries.
+Check values at meaningful entry points and store them in types that communicate
+their meaning. Later code should not have to repeatedly rediscover the same rules.
 
-## 3. Understand the Principle
+## 3. Understand the Idea Step by Step
 
-Three useful terms describe the agreement:
+1. Decide which percentage values are allowed: 0 through 100.
+2. Check that range when constructing a percentage object.
+3. Keep the stored value inside that range during normal use.
+4. State any additional rules for operations, such as allowed money amounts and rounding.
+5. Report failures in a consistent way.
 
-- **Precondition:** what must be true before a call, such as an amount being within
-	the supported range.
-- **Postcondition:** what is promised after a successful call, such as returning
-	the percentage of that amount using the stated rounding rule.
-- **Invariant:** a rule kept throughout normal use of an object, such as a stored
-	percentage always being between 0 and 100.
+| Term | Meaning | Example |
+| --- | --- | --- |
+| Precondition | What must hold before an operation | Input amount is in the supported range |
+| Postcondition | What success promises | Result follows the stated percentage and rounding rule |
+| Invariant | A rule the object keeps during normal use | Stored percentage remains between 0 and 100 |
 
-Check the percentage when constructing the object, and do not let later operations
-break that rule. Calculation code can then trust the stored percentage instead of
-checking it repeatedly. It must still check any separate limits on the amount.
+### Picture: Reject Invalid Percentages at the Entrance
 
-Define the failure mechanism deliberately: exceptions, result values, or another
-project convention. Debug assertions may disappear in Release builds, so they are
-not sufficient for required validation of untrusted input.
+Read downward. Only the yes branch allows a usable percentage object to be created.
 
-Fail fast does not mean terminate the entire service for every error. Reject the
-invalid operation locally and handle the failure at an appropriate boundary. Nor
-does it require repeating expensive validation at every already-trusted internal layer.
+```mermaid
+flowchart TD
+    Input["Requested discount percentage"] --> Check{"Between 0 and 100?"}
+    Check -->|Yes| Valid["Create a valid percentage object"]
+    Check -->|No| Reject["Report an error before calculation"]
+```
+
+**Read it as a sentence:** a valid percentage enters the calculation; 101 does not
+silently become a normal discount value.
+
+Fail fast does not mean crash the whole service. Reject the bad operation and handle
+its error at the appropriate level. **Assertions**, checks intended to detect
+programmer mistakes, may be disabled in release builds; do not rely on them alone
+for required checks on untrusted input.
 
 ## 4. Real-World Scenario
 
-A billing system accepts a discount percentage from a request. Constructing a
-validated discount value at the boundary prevents 150% or negative discounts from
-silently reaching calculation code. A separate money type can prevent mixing
-currency amounts with percentages.
+A billing service receives a discount from a request. Creating a checked percentage
+prevents negative or 150% discounts from reaching arithmetic. A separate money type
+can also prevent accidentally passing a percentage where an amount is expected.
 
-The contract must also specify rounding and maximum amounts. Correct types do not
-automatically make arithmetic overflow-safe or financially appropriate.
+Types do not automatically decide rounding or prevent every numeric overflow.
+Those rules still need explicit definitions and tests appropriate to the business.
 
 ## 5. Understand the C++ Example
 
 Open [contracts.cpp](../../principles/contracts.cpp).
 
-`Percentage` checks that its stored integer is between 0 and 100. Its `of()` operation
-also limits the input amount and uses a larger integer type for the multiplication,
-so the temporary result does not overflow before division.
+`Percentage` checks its integer at construction. Its `of()` operation also checks
+the input amount and uses `long long`, a larger integer type, for multiplication.
 
-1. Zero percent of 1000 returns zero.
-2. One hundred percent returns 1000.
-3. Twenty-five percent of 999 computes 24975 / 100, yielding 249 after truncation.
-4. Constructing 101% throws before a usable invalid object escapes.
-5. Checks verify the boundaries and rounding example.
+1. Zero percent of 1000 is 0.
+2. One hundred percent of 1000 is 1000.
+3. Twenty-five percent of 999 computes `24975 / 100`, giving integer 249.
+4. The fractional part is discarded; this is **truncation**, the sample's rounding rule.
+5. Constructing 101% throws an exception, reporting the invalid value.
+6. Checks verify the range endpoints and the worked arithmetic.
 
-The cast to `long long` happens before multiplication. Casting after overflow
-would be too late. The amount range is an explicit teaching contract, not a claim
-that every financial amount can fit in this representation.
+**Overflow** means a result exceeds a number type's range. Converting to the larger
+type must happen before multiplication; doing it after overflow is too late.
+The supported amount limit is part of this teaching example, not a universal money model.
 
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** localized errors, clearer units, fewer invalid states, and testable
-boundary conditions.
+**Benefits:** clearer units, errors nearer their causes, fewer invalid stored values,
+and precise boundaries to test.
 
-**Drawbacks:** overvalidation adds noise or cost; exceptions may not fit every
-runtime; badly chosen types can make ordinary operations cumbersome.
+**Drawbacks:** unnecessary repeated checks add noise or cost. Too many poorly chosen
+types can make simple work awkward. Exceptions are not suitable for every runtime;
+some projects use explicit error results instead.
 
-Choose domain types and validation at meaningful boundaries. Clamping is appropriate
-only when explicitly part of the API, not as a silent substitute for rejection.
+**Use checks where meaning enters:** then preserve the rules through valid operations.
+Silently changing bad input is only appropriate when that behavior is explicitly promised.
 
 ## 7. Check Your Understanding
 
-**Question:** Why not silently clamp 101% to 100%?
+**Question:** Why not quietly change 101% into 100%?
 
-**Answer:** That changes the caller's request and hides a bug unless clamping is
-the agreed behavior. Rejection keeps the invalid input visible and actionable.
+**Answer:** That hides the invalid request and changes its meaning. This behavior,
+called clamping, is reasonable only if agreed in advance. Otherwise rejection helps
+the caller find and fix the mistake.
 
-See the [principles technical notes](../../principles/README.md).
+Optional detail: [principles technical notes](../../principles/README.md).

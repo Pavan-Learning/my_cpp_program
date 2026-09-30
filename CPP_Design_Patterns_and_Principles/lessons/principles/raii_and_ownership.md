@@ -2,87 +2,100 @@
 
 ## 1. Definition
 
-Resource Acquisition Is Initialization (RAII) is the C++ habit of putting a resource
-inside an object that takes care of releasing it. When the object's lifetime ends,
-its destructor performs the cleanup automatically.
+**Put each resource inside an object that releases it automatically when that
+object's lifetime ends.** This C++ approach is called RAII, short for Resource
+Acquisition Is Initialization.
 
-**In simple words:** give every resource a responsible owner, so callers do not
-have to remember cleanup at every exit. Resources include allocated memory, open
-files, held locks, and network connections.
-
-**Ownership** means being responsible for release. **Borrowing** means being allowed
-to use the resource without becoming responsible for releasing it.
+A **resource** is something that must eventually be released: allocated memory,
+an open file, a held lock, or a network connection. **Ownership** means responsibility
+for that release. **Borrowing** means using the resource without taking that responsibility.
 
 ## 2. The Problem It Solves
 
-Manual cleanup must be repeated on normal return, early return, and every exception
-path. Adding one new exit can create a leak. Unclear ownership can also cause two
-callers to release the same resource or neither to release it.
+Manual cleanup must be remembered on every normal return, early return, and error
+path. Adding a new exit can accidentally skip cleanup and leave a file or connection open.
+Unclear ownership can also make two parts release the same resource twice.
 
-The language's scope and destruction rules should carry the cleanup obligation
-instead of requiring each caller to remember every path.
+Let an owner's cleanup follow the C++ object's lifetime rather than trusting every
+caller to remember each possible path.
 
-## 3. Understand the Principle
+## 3. Understand the Idea Step by Step
 
-Imagine one object owns an open file. Other code may borrow access to read it, but
-the owner is responsible for closing it. Moving ownership passes that responsibility
-to another object; it does not need to copy the file. Any borrower must stop using
-the file before the owner closes it.
+1. Acquire the resource and place it under an owning object.
+2. Use the resource through that owner or through clearly limited borrowed access.
+3. Transfer ownership deliberately if another object must take responsibility.
+4. Let the owner's destruction perform cleanup.
 
-Prefer values for ordinary contained objects, `unique_ptr` for exclusive dynamic
-ownership, and `shared_ptr` only for genuinely shared lifetime. `weak_ptr` observes
-shared ownership without extending it. Reference counting does not make the pointed
-object thread-safe, and ownership cycles can prevent destruction.
+A **constructor** initializes an object. A **destructor** runs cleanup when the
+object is destroyed. A **scope** is a region of code, often a block in braces.
+An ordinary local owner is destroyed when execution leaves its scope.
 
-Destructors should normally not throw exceptions. If an operation such as saving
-buffered data can fail, provide a separate function that reports failure, while
-keeping destructor cleanup nonthrowing. During normal returns and exception handling,
-C++ destroys local objects as it leaves their scopes. This exception cleanup is
-called **stack unwinding**. It does not run reliably after abrupt process termination
-or power loss.
+### Picture: Cleanup Follows the Owner
+
+Read downward. Both ordinary exit and exception cleanup lead to the same release step.
+
+```mermaid
+flowchart TD
+    Create["1. Create an owner for a connection"] --> Use["2. Use the connection"]
+    Use --> Exit["3. Leave the scope normally or during exception handling"]
+    Exit --> Release["4. Owner automatically releases the connection"]
+```
+
+**Read it as a sentence:** acquire through an owner, use the resource, and let cleanup
+happen when the owner is destroyed. You do not add a separate manual release at every return.
+
+An **exception** reports an error by leaving normal execution and searching for a
+handler. Destroying local owners while it leaves scopes is called **stack unwinding**.
+This does not guarantee cleanup after abrupt program termination or power loss.
+
+Use `unique_ptr` for one owner of a dynamically created object. Use `shared_ptr`
+only when several owners genuinely need to keep one object alive. `weak_ptr` can
+observe shared ownership without keeping the object alive itself. Shared ownership
+does not make simultaneous changes safe, and owners that keep each other alive can leak.
 
 ## 4. Real-World Scenario
 
-A file-processing operation opens a file, acquires a mutex, then parses content.
-Parsing may fail. A file owner and lock guard ensure both resources are released
-when control leaves the scope, regardless of the parsing result.
+A file-processing function opens a file and locks shared data before parsing text.
+A file owner and lock guard can close the file and release the lock if parsing fails.
+A **mutex** is a lock used to coordinate access; the lock guard owns the duty to unlock it.
 
-RAII prevents resource leaks, but it does not necessarily undo bytes already written.
-Atomic output or transactional rollback requires an additional deliberate protocol.
+Cleanup does not erase bytes already written. Undoing partial output needs another
+design, such as writing a temporary file and replacing the destination only after success.
 
 ## 5. Understand the C++ Example
 
 Open [raii_and_ownership.cpp](../../principles/raii_and_ownership.cpp).
 
-`Connection` simulates a resource using an active count. Construction increments
-the count; destruction decrements it. Copying is disabled.
+`Connection` simulates a resource by increasing an active count when created and
+decreasing it when destroyed. Copying is disabled to prevent duplicate ownership.
 
-1. A `unique_ptr` creates one connection.
-2. Moving that pointer empties the source and transfers ownership to the destination.
-3. The active count stays one because no connection was duplicated.
-4. Scope exit destroys the owner, returning the count to zero.
-5. Another operation creates a connection, then throws deliberately.
-6. Unwinding destroys its owner before the catch; the final count is again zero.
+1. A `unique_ptr` owns one connection; the active count becomes one.
+2. Move that pointer into another pointer. The old pointer becomes empty.
+3. The count stays one because moving ownership did not copy the connection.
+4. Leaving the scope destroys the owner and brings the count back to zero.
+5. Another test deliberately throws after creating a connection.
+6. Exception cleanup destroys the owner before the error is caught; the count is again zero.
 
-The test covers both normal and exceptional cleanup. The counter is a deterministic
-single-threaded simulation, not real network resource management.
+The example uses a counter, not a real network. Destructors should normally not
+throw errors. If a final save can fail, provide an explicit operation that reports
+failure and keep destructor cleanup as a nonthrowing fallback.
 
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** deterministic ordinary cleanup, explicit lifetime, exception-path
-safety, and less repeated release code.
+**Benefits:** fewer leaks, clear cleanup responsibility, and correct ordinary cleanup
+across early returns and handled exceptions.
 
-**Drawbacks:** fallible finalization needs extra design, shared lifetime can become
-unclear, and asynchronous borrowing requires careful coordination.
+**Drawbacks:** shared ownership can be hard to follow. Borrowers must stop before
+their resource disappears. Cleanup that itself can fail needs an explicit policy.
 
-Use existing standard or library owners before writing a custom one. Keep raw-resource
-management in a small tested layer, then compose it into higher-level objects.
+**Use existing owners first:** standard strings, containers, file wrappers, and lock
+guards already solve many cleanup problems. Keep custom raw-resource handling small.
 
 ## 7. Check Your Understanding
 
-**Question:** Does moving a `unique_ptr` move or copy the pointed-to connection?
+**Question:** Does moving a `unique_ptr` move the connection to a new memory address?
 
-**Answer:** It transfers the owning handle. The connection stays where it is; the
-new pointer becomes responsible for eventual destruction.
+**Answer:** No. It transfers the pointer's ownership. The connection remains where
+it was, while the destination pointer becomes responsible for destroying it later.
 
-See the [principles technical notes](../../principles/README.md).
+Optional detail: [principles technical notes](../../principles/README.md).

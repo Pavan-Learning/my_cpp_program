@@ -2,77 +2,93 @@
 
 ## 1. Definition
 
-Prefer building behavior by combining collaborating objects when the relationship
-is “has-a” or “uses-a.” Use public inheritance when a derived object truly satisfies
-the base object's behavioral contract and can substitute for it.
+**Build an object from useful parts when it has or uses those parts. Do not make
+it inherit from another class merely to reuse a few functions.**
 
-This is a preference against inheritance merely for code reuse, not a ban on inheritance.
+A robot has a motor and a camera. It is not itself a motor or a camera. Keeping
+those parts inside the robot expresses that relationship directly.
 
 ## 2. The Problem It Solves
 
-Inheriting a class to reuse a few methods also inherits its API, assumptions, and
-often protected representation. The derived type may advertise operations that
-make no sense for it. Multiple independent capabilities can produce deep or
-combinatorial subclass hierarchies.
+Inheritance can bring along operations and assumptions that do not fit the new class.
+The class may appear to promise abilities it cannot properly provide. Many combinations
+of abilities can also produce a large family of specialized derived classes.
 
-Composition lets an object use capabilities without pretending to be those capabilities.
+Using parts lets the object expose only the operations appropriate to its own job.
 
-## 3. Understand the Principle
+## 3. Understand the Idea Step by Step
 
-A composed object delegates selected work to its members. It can expose only the
-operations meaningful to its own role. Values, borrowed references, owning pointers,
-and template parameters offer different lifetime and replacement choices.
+1. Identify the abilities the object needs, such as movement and image capture.
+2. Give each ability a suitable helper object.
+3. Store or receive those helpers as parts of the main object.
+4. Ask the helpers to perform their work when needed.
 
-Composition separates capability reuse from substitutability. A car uses an engine,
-but callers should not treat the car as an engine. Conversely, a concrete renderer
-can truthfully implement a renderer interface through inheritance.
+**Composition** means building with objects as parts. **Delegation** means asking a
+helper to do some work. **Inheritance** creates a derived class from a base class;
+public inheritance promises the derived object can be used in place of that base.
 
-Runtime replacement is optional. Fixed value members may be ideal for a simple
-design. Adding polymorphic pointers to every member does not make composition better
-unless the replacement requirement actually exists.
+### Picture: A Robot Has Parts
+
+Read each arrow as "contains and uses." The arrows do not specify execution order.
+
+```mermaid
+flowchart TD
+    Robot["Inspection robot"] --> Motor["Motor handles movement"]
+    Robot --> Camera["Camera handles image capture"]
+```
+
+**Read it as a sentence:** the robot uses its motor to move and its camera to capture
+an image. It does not claim to be either part.
+
+Parts do not always need to be replaceable while the program runs. Ordinary member
+objects are often enough. Pointers and extra interfaces are useful when replacement
+is actually needed, not because they make a diagram look more flexible.
 
 ## 4. Real-World Scenario
 
-A media player uses a decoder, audio output, and playlist model. Inheriting the
-player from a decoder would expose low-level decoding operations as though the
-player itself were a decoder. Composing those services preserves their roles.
+A media player uses a decoder, an audio output, and a playlist. The player should
+not inherit all decoder operations just to play a file; it can keep a decoder as a helper.
 
-Different output backends can be supplied through a stable contract if needed.
-The player still owns orchestration and must define lifecycle and error handling
-across those collaborators.
+If different audio outputs are required, the player can use a shared output interface.
+It still needs clear rules for starting, stopping, and handling failures across its parts.
 
 ## 5. Understand the C++ Example
 
 Open [composition.cpp](../../principles/composition.cpp).
 
-`InspectionRobot` contains a `Motor` and `Camera` by value. It inherits from neither.
+`InspectionRobot` contains `Motor` and `Camera` objects directly as members. It does
+not derive from either class.
 
-1. Constructing the robot constructs its member capabilities.
-2. `inspect()` asks the motor to move and the camera for a capture description.
-3. It combines their returned values as `moving: photo`.
-4. The check verifies the combined behavior.
+1. Creating the robot also creates its two member objects.
+2. `inspect()` asks the motor for a movement description.
+3. It asks the camera for a capture description.
+4. The returned strings form `moving: photo`.
+5. The program checks that combined result.
 
-The members need no dynamic allocation and their lifetimes follow the robot.
-The methods return pure strings; this is not hardware control or a guarantee about
-sequencing physical movement and capture. Real ordered effects should be invoked
-in explicit separate statements with appropriate failure handling.
+The members exist for the robot's lifetime and are cleaned up with it. No separate
+memory allocation is needed for these parts. The functions return descriptions;
+they do not control real hardware. For real movement followed by capture, write
+separate ordered statements and handle failures, rather than assuming string-expression
+evaluation guarantees physical timing.
 
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** focused public APIs, independent capabilities, reduced inherited
-assumptions, and straightforward member ownership.
+**Benefits:** useful parts remain separate, the robot's public operations stay focused,
+and it does not inherit promises that do not describe a robot.
 
-**Drawbacks:** forwarding can be verbose; interchangeable components need contracts;
-some frameworks deliberately require subclass extension.
+**Drawbacks:** forwarding work to helpers adds some code. Replaceable helpers need
+agreed operations and lifetime rules. Some frameworks genuinely require derived classes.
 
-Use inheritance for truthful behavioral subtypes. Use templates for fixed policy
-composition or virtual interfaces for runtime replacement when justified.
+**Use inheritance when:** the new type really keeps the base type's promises. A
+specific renderer can honestly be a renderer. This principle is a preference against
+misusing inheritance, not a ban on it.
 
 ## 7. Check Your Understanding
 
-**Question:** Should an inspection robot inherit from `Camera` because it takes pictures?
+**Question:** Should a robot inherit from `Camera` because it can take pictures?
 
-**Answer:** Not for that reason. It has a camera capability. Inheritance would promise
-that the whole robot can substitute for every valid camera use, which may be false.
+**Answer:** Not for that reason. It has a camera capability. Inheritance would claim
+the whole robot can replace a camera wherever one is expected, which is a different
+and possibly false promise.
 
-See the [principles technical notes](../../principles/README.md).
+Optional detail: [principles technical notes](../../principles/README.md).

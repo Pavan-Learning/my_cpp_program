@@ -2,79 +2,96 @@
 
 ## 1. Definition
 
-Mediator is a behavioral pattern that centralizes interaction rules among a group
-of objects. Colleague objects communicate through the mediator rather than encoding
-detailed knowledge of one another's behavior.
+**Mediator puts the rules for cooperation between several objects in one coordinator.**
+The objects report what happened to the coordinator instead of each controlling the others.
+
+Imagine a sign-in form. Typing into either field may change whether Submit is enabled.
+The form can own that rule; a username field does not need to control the password
+field or know all the rules for the button.
 
 ## 2. The Problem It Solves
 
-When many components directly update one another, coordination becomes scattered.
-A change in one component can trigger several others, which call back into the
-first. Understanding the workflow requires tracing a web of relationships.
+If every field directly updates several other fields and buttons, their relationships
+become difficult to follow. Changing one rule may require editing many components.
+Updates can even trigger each other repeatedly.
 
-The goal is not to eliminate collaboration. It is to give the collaboration rules
-a clear owner while keeping individual components focused on their local behavior.
+Give the coordination rule one home. Each field handles its own text and reports changes.
+The mediator decides how the form should respond.
 
-## 3. Understand the Mechanism
+## 3. Understand the Idea Step by Step
 
-Colleagues report events through a mediator interface. The concrete mediator
-interprets those events in context and decides what should happen next. Colleagues
-do not need to know every other colleague's type or state layout.
+1. A field changes its own value.
+2. It notifies the mediator.
+3. The mediator examines the relevant form values.
+4. The mediator updates the form's allowed actions.
 
-This moves coupling toward the mediator, which deliberately knows the workflow.
-That concentration is beneficial only while the mediator has a coherent scope.
-A single mediator controlling unrelated workflows becomes another god object.
+The participating objects are sometimes called **colleagues**. Here they are simply
+fields. **Notification** means informing another object that something happened.
+The mediator's useful job is making the coordination decision, not just forwarding messages.
 
-Notifications can cause feedback loops. If reacting to one change modifies another
-component that immediately notifies again, batching or explicit reentrancy policies
-may be needed.
+### Picture: Fields Tell the Form, the Form Decides
+
+Read each arrow as "reports to" until the final arrow, which means "updates."
+
+```mermaid
+flowchart TD
+    Username["Username text changes"] --> Form["Form checks whether both fields have text"]
+    Password["Password text changes"] --> Form
+    Form --> Button["Submit is enabled only when both are nonempty"]
+```
+
+**Read it as a sentence:** either field tells the form about a change; the form
+decides whether Submit should be enabled. The fields do not control one another.
+
+Keep the mediator focused. One coordinator for every unrelated feature would become
+too large. Also check for update loops: changing a field from inside a notification
+may produce another notification before the first one finishes.
 
 ## 4. Real-World Scenario
 
-A flight-search form has destination, travel dates, passenger count, and a search
-button. Changes can affect validation, available options, and button state. A form
-coordinator recomputes those relationships instead of teaching each field about
-every other field.
+A flight-search form has destination, dates, and passenger count. Changing dates may
+change available flights and whether Search is enabled. A form coordinator keeps
+those relationships in one place rather than inside every input field.
 
-This is coordination, not merely broadcasting events. An Observer can deliver field
-notifications to the coordinator; the Mediator decides how the form should respond.
-Server-side validation remains necessary even if the form enables the button.
+Enabling a button is only a user-interface decision. The server must still validate
+the actual request; users may send requests without using the form.
 
 ## 5. Understand the C++ Example
 
 Open [mediator.cpp](../../../patterns/behavioral/mediator.cpp).
 
-`TextField` stores text and a mediator reference. `SignInForm` owns username and
-password fields and implements `changed()`.
+`TextField` stores text and access to a mediator. `SignInForm` owns the username
+and password fields and implements the `changed()` notification function.
 
-1. Both fields begin empty, so submission is disabled.
-2. Setting username updates that field, then notifies the form.
-3. The form checks both fields and stays disabled because password is empty.
-4. Setting password notifies the form again, enabling submission.
-5. Clearing username causes another recomputation and disables submission.
+1. Both fields start empty, so submission is disabled.
+2. Set the username. The field reports the change.
+3. The form sees the password is still empty and stays disabled.
+4. Set the password. The form now enables submission.
+5. Clear the username. Submission becomes disabled again.
+6. Checks confirm each of these states.
 
-All four states are checked. Fields only know `Mediator`; the form owns the
-cross-field rule. Copying the form is disabled because copied fields would otherwise
-retain references to the original mediator. Field constructors store references
-without invoking callbacks on a partially constructed form.
+The fields hold references to their form, meaning they refer to that existing object.
+Copying the form is disabled because an automatic copy could leave fields referring
+to the original form. During construction, fields store their references without
+calling back into a form that has not finished being created.
 
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** localized workflow rules, reusable colleagues, and fewer direct
-colleague dependencies.
+**Benefits:** one place for cooperation rules; simpler individual fields; fewer
+direct relationships between components.
 
-**Drawbacks:** a central complexity hotspot, possible event loops, and another
-coordination layer for simple cases.
+**Drawbacks:** the coordinator can become too large; notification loops need care;
+an extra class may not help a very small form.
 
-Use it when interactions are complex enough to need a dedicated owner. A small
-controller function can be sufficient. Facade offers a simplified external entry
-point; Mediator manages relationships among participating colleagues.
+**Use it when:** several parts affect each other. A small ordinary coordinator
+function may be enough. Observer sends notifications; a mediator can receive them
+and decide what the collaborating objects should do next.
 
 ## 7. Check Your Understanding
 
-**Question:** Does the mediator authenticate the user in this program?
+**Question:** Does this form check that the username and password are correct?
 
-**Answer:** No. It checks only whether two fields are nonempty. Coordination of UI
-state is not credential verification or a security boundary.
+**Answer:** No. It only checks that both contain text. Verifying credentials requires
+separate authentication work; enabling a button is not proof of identity.
 
-See the [behavioral technical notes](../../../patterns/behavioral/README.md).
+Optional detail: [behavioral technical notes](../../../patterns/behavioral/README.md).

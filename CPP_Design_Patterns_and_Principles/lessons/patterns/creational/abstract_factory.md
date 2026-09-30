@@ -2,88 +2,103 @@
 
 ## 1. Definition
 
-Abstract Factory is a creational pattern that provides an interface for creating
-families of related or compatible objects without exposing their concrete classes
-to the client. **Choose a family once, then obtain its matching products through
-one factory.** A family contains different product roles, not merely many copies
-of one product.
+**Abstract Factory creates a set of objects that are meant to work together. You
+choose the set once, then ask the same factory for its different parts.**
+
+Imagine choosing a light theme for a screen. You want a light button and a light
+checkbox, not a light button mixed with a dark checkbox. A factory is simply an
+object whose job is to create other objects. Here, it creates matching controls.
 
 ## 2. The Problem It Solves
 
-A system needs several collaborating objects: a connection, a command, and a
-transaction, for example. Selecting each implementation independently can produce
-an invalid combination. Scattering provider checks throughout the system also
-makes switching provider difficult and error-prone.
+Without this arrangement, every screen might separately decide which button and
+checkbox classes to create. One screen could forget a check and mix two themes.
+Adding another theme would also mean finding these decisions throughout the program.
 
-The design must separate what the application needs from which provider supplies
-the complete group. Centralizing individual constructors is insufficient if the
-client must still remember which implementations belong together.
+Instead, let one selected factory know how to create all the parts of a theme.
+The screen asks for a button and checkbox without repeating theme decisions.
 
-## 3. Understand the Mechanism
+## 3. Understand the Idea Step by Step
 
-There are two dimensions. Product categories describe different roles. Product
-families provide compatible implementations of those roles. An abstract factory
-has an operation for each category, and each concrete factory supplies one family.
+1. List the different parts needed: a button and a checkbox.
+2. Define the operations that create those parts.
+3. Provide a light factory and a dark factory. Each creates its matching parts.
+4. Give one factory to the screen. Ask that factory for everything the screen needs.
 
-The client receives a factory and asks it for products through abstract interfaces.
-It never needs to assemble concrete-class combinations. Adding a family usually
-leaves the client unchanged; adding a category changes every factory. That asymmetry
-is the central extension tradeoff, not an incidental implementation detail.
+An **interface** is a list of operations the caller can rely on. Here it promises
+"make a button" and "make a checkbox." **Abstract** means that this common description
+does not choose the theme itself. A specific factory supplies that choice.
 
-Compatibility is a contract, not a magical property of the pattern. Clients can
-still mix manually constructed objects. Stronger requirements may need typed
-bundles, provider identity checks, or a session that owns all related products.
+### Picture: Keep Each Set Together
+
+Read from top to bottom. Take one theme branch, not both. Each bottom box lists
+the two objects created by that theme's factory.
+
+```mermaid
+flowchart TD
+    Choose["1. Choose the screen theme"] --> Theme{"Light or dark?"}
+    Theme -->|Light| Light["2. Use the light factory"]
+    Theme -->|Dark| Dark["2. Use the dark factory"]
+    Light --> LightSet["3. Get a light button and light checkbox"]
+    Dark --> DarkSet["3. Get a dark button and dark checkbox"]
+```
+
+**Read it as a sentence:** choosing the light factory gives both light controls;
+choosing the dark factory gives both dark controls.
+
+A **product** is a created object. A **product category** is a kind of part, such as
+button or checkbox. A **family** is a matching set, such as all the light controls.
+Adding a theme adds a family. Adding sliders adds a category and needs work in
+every factory so every theme can supply a slider.
 
 ## 4. Real-World Scenario
 
-Imagine a database application supporting two database engines. Each provider
-supplies a connection, transaction, and command implementation. Selecting the
-provider factory ensures routine creation uses one engine's family.
+Imagine an application that supports two database systems. Each system supplies
+its own connection and command objects. A selected database factory creates both,
+so the application does not accidentally send one system's command to the other.
 
-This helps avoid passing a transaction from one driver into a command from another.
-However, products must often also belong to the same *session*, not just the same
-provider. A production factory would preserve that relationship explicitly.
-Different engines may have different transaction semantics, so the common contract
-must describe the behavior the application actually relies on.
+Real database objects may also need to belong to the same active connection.
+Choosing the right system is not enough by itself; the factory must preserve
+that relationship too. This is an example design, not a complete database library.
 
 ## 5. Understand the C++ Example
 
 Open [abstract_factory.cpp](../../../patterns/creational/abstract_factory.cpp).
 
-`Button` and `Checkbox` are product categories. Light and dark are the families.
-`WidgetFactory` declares `button()` and `checkbox()`; each concrete factory returns
-its matching implementations. `draw_form()` is the client.
+`WidgetFactory` describes the two creation functions, `button()` and `checkbox()`.
+`LightFactory` and `DarkFactory` supply different versions. `draw_form()` is the
+function using the objects. In pattern books, that using code is called the **client**.
 
-1. `draw_form()` receives a factory reference, without learning its concrete type.
-2. It requests a button and checkbox from that factory.
-3. With `DarkFactory`, these are `DarkButton` and `DarkCheckbox`.
-4. Calls to their `draw()` methods yield `dark button` and `dark checkbox`.
-5. Combining those values yields `dark button + dark checkbox`.
-6. The light-family check repeats the same client operation with another factory.
+1. Pass a `DarkFactory` to `draw_form()`.
+2. The form asks it for a button and checkbox.
+3. It receives a `DarkButton` and `DarkCheckbox`.
+4. Each object's `draw()` returns a description.
+5. The combined result is `dark button + dark checkbox`.
+6. The light factory produces the corresponding light result with the same form code.
 
-Each product is returned in a `unique_ptr`, so temporary products are destroyed
-after use. These products have no session relationship; matching appearance is the
-sample's compatibility requirement. The test verifies both family outputs, not a
-universal compile-time ban on mixed products.
+The checks verify both results. Each created object is kept in a `unique_ptr`, a
+pointer that owns the object and cleans it up automatically. The example prevents
+mixing by consistently using one factory; it does not forbid someone from manually
+creating and mixing controls elsewhere.
 
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** centralizes family selection, keeps concrete types outside clients,
-and makes provider-family replacement straightforward.
+**Benefits:** matching parts are created together; theme choices do not spread
+through every screen; another theme can use the same screen code.
 
-**Drawbacks:** creates many classes and makes new product categories expensive.
-A weak common contract can conceal important provider differences.
+**Drawbacks:** there are more classes. A new kind of control must be added to every
+factory. All themes must genuinely support the operations promised to the screen.
 
-Use it for genuine families of collaborating products. For one product, a factory
-function or Factory Method may suffice. Builder assembles a product step by step;
-it addresses a different problem and can be used alongside an Abstract Factory.
+**Use it when:** you need several related kinds of objects. If you only need one
+object, a simple creation function may be enough. Builder addresses a different
+problem: preparing one object through several steps.
 
 ## 7. Check Your Understanding
 
-**Question:** Why is adding a theme easier than adding a slider category?
+**Question:** Why is adding a blue theme easier than adding sliders?
 
-**Answer:** A theme implements the existing factory operations. A slider adds a
-new operation to the factory contract, so every existing family must implement it.
-The design is open along the family dimension, not every possible dimension.
+**Answer:** A blue factory can implement the existing button and checkbox operations.
+A slider needs a new operation, and light, dark, and blue factories must all provide
+it. The pattern makes adding matching sets convenient, not every possible change.
 
-See the [creational technical notes](../../../patterns/creational/README.md).
+Optional detail: [creational technical notes](../../../patterns/creational/README.md).

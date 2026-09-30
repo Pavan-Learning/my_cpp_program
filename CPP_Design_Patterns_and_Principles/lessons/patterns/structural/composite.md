@@ -2,78 +2,92 @@
 
 ## 1. Definition
 
-Composite is a structural pattern that represents part-whole hierarchies as trees
-and lets clients use individual objects and groups through a common interface.
-A group implements an operation by applying it to its children, which may themselves
-be groups.
+**Composite lets you use the same operation on a single item and on a group of items.**
+A group can contain other groups, so the same rule works at every level.
+
+Think about asking for size. A file reports its own size. A folder asks its contents
+for their sizes and adds them. You can ask either one the same question.
 
 ## 2. The Problem It Solves
 
-A graphics editor contains individual objects and groups of objects. A group can
-contain nested groups. If every client must distinguish each possible level, moving,
-drawing, and calculating bounds require repeated type checks and recursion logic.
+Without a common operation, callers may need code saying "if this is a file, do this;
+if it is a folder, examine its children." Every caller repeats the nesting logic.
 
-The client should ask a node to perform the meaningful operation. The node decides
-whether to act directly or delegate recursively.
+Instead, let each item know how to answer. A file answers directly, while a folder
+gets answers from its children. The caller does not need to inspect every level itself.
 
-## 3. Understand the Mechanism
+## 3. Understand the Idea Step by Step
 
-A component defines operations common to all nodes. A leaf performs the operation
-directly. A composite stores children and combines or forwards their results.
-Recursion terminates at leaves, so arbitrary nesting follows one simple rule.
+1. Define an operation meaningful for both single items and groups.
+2. Make a single item perform it directly.
+3. Make a group apply it to each child and combine the answers.
+4. Let children be either single items or other groups.
 
-The common interface should contain operations meaningful for both kinds. Child
-insertion can stay on the composite rather than forcing leaves to implement a
-meaningless `add()` method. This trades uniform mutation syntax for a safer API.
+This arrangement is a **tree**: one starting item has children, which can have more
+children. A **leaf** is an item without children. The group is the **composite**.
+**Recursion** means applying the same rule again to a smaller part, such as a subfolder.
 
-Ownership is separate from traversal. A tree often has one owner per child. Shared
-nodes produce a graph, requiring explicit rules for cycles and double-counting.
+### Picture: A Folder Adds the Sizes Below It
+
+Read each arrow as "contains." The number in a folder is the sum of its children.
+
+```mermaid
+flowchart TD
+    Root["Main folder: 30 bytes"] --> First["File A: 10 bytes"]
+    Root --> Nested["Inner folder: 20 bytes"]
+    Nested --> Second["File B: 20 bytes"]
+```
+
+**Read it as a sentence:** the inner folder totals 20; the main folder adds its
+10-byte file to that 20 and reports 30.
+
+Only folders need an "add child" operation. Do not force a file to offer a meaningless
+operation just to make every class look identical.
 
 ## 4. Real-World Scenario
 
-In a slide editor, a user groups a title, a chart, and a nested legend group.
-Dragging the outer group moves all descendants. The editor invokes movement on
-one component rather than manually enumerating every object type.
+A slide editor groups a title, chart, and legend. Moving the group moves every
+contained item. The legend may itself be a group of labels. Each group passes the
+move request to its children using the same rule.
 
-Production implementations must define coordinate systems, clipping, event routing,
-and whether group transforms are stored or applied to children. Composite supplies
-the recursive organization, not those geometry policies.
+The editor still must decide how positions work. Composite describes the grouping;
+it does not choose whether positions are relative to the slide or to a parent group.
 
 ## 5. Understand the C++ Example
 
 Open [composite.cpp](../../../patterns/structural/composite.cpp).
 
-`Node` defines `size()`. A `File` returns its byte count. A `Directory` owns
-`unique_ptr<Node>` children and adds their sizes.
+`Node` describes `size()`. `File` returns a stored size. `Directory` owns a collection
+of child nodes and adds the answers from their `size()` functions.
 
-1. An empty root reports zero.
-2. A nested directory receives a 20-byte file.
-3. The root receives a 10-byte file and ownership of the nested directory.
-4. `root.size()` asks the file for 10 and the nested directory for its own total.
-5. The nested directory asks its file for 20; the root adds 10 and 20.
-6. A check verifies 30; another verifies null insertion is rejected without mutation.
+1. An empty directory reports zero.
+2. Put a 20-byte file inside the inner directory.
+3. Put a 10-byte file and that inner directory inside the main directory.
+4. The main directory asks for 10 and 20, then returns 30.
+5. Checks verify the total and reject adding a missing, or null, child.
 
-The same `size()` interface works at every level. Exclusive child ownership makes
-destruction recursive and automatic. Small `int` totals are sufficient for the
-demonstration, but real large trees need overflow and depth policies.
+Children are stored in `unique_ptr`, pointers that own and automatically destroy
+their objects. Destroying a directory therefore cleans up its children too. A child
+has one owner here. If items were shared between groups or linked back to their
+parents as children, repeated counting and endless traversal would need extra rules.
 
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** uniform recursive operations, fewer client type checks, and a natural
-model for trees such as menus, scenes, and document structures.
+**Benefits:** simple callers, one rule for nested groups, and a natural way to model
+folders, menus, and grouped drawings.
 
-**Drawbacks:** recursion can exhaust the stack, common interfaces can become too
-broad, and shared/cyclic graphs require more than simple tree ownership.
+**Drawbacks:** very deep nesting can use too much function-call memory. Huge totals
+can exceed the number type's range. A poorly chosen common interface can force
+meaningless operations onto some items.
 
-Use it for genuine hierarchical composition. A flat list or plain data tree may
-be simpler when polymorphic node behavior is unnecessary. Visitor can add new
-operations to a stable set of node types without changing the tree structure.
+**Use it when:** nested groups are a real part of the problem. A flat list is simpler
+when there is no nesting to represent.
 
 ## 7. Check Your Understanding
 
-**Question:** Must clients know a node is a directory before asking its size?
+**Question:** Must a caller know whether a node is a file or folder before asking its size?
 
-**Answer:** No. The common operation hides that distinction. They need directory
-capability only for directory-specific behavior such as adding children.
+**Answer:** No. Both promise `size()`. Only folder-specific work, such as inserting
+a child, requires knowing that the node supports that extra operation.
 
-See the [structural technical notes](../../../patterns/structural/README.md).
+Optional detail: [structural technical notes](../../../patterns/structural/README.md).

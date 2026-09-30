@@ -2,80 +2,98 @@
 
 ## 1. Definition
 
-Singleton is a creational pattern that restricts a type to one accessible instance
-within its intended scope and provides a globally reachable access point to it.
-It combines **instance-count restriction** with **global access**. Those are two
-separate design decisions, even though the pattern packages them together.
+**Singleton limits a class to one shared object within a chosen scope and provides
+one known way to access it.** In this example, that scope is the running program.
+An **instance** means an actual object created from a class, not the class itself.
+
+Imagine several parts of a program reading one fixed set of application settings.
+They all ask for the same settings object instead of creating their own copies.
 
 ## 2. The Problem It Solves
 
-Some applications need one shared coordinator or one set of process-wide metadata.
-Uncontrolled construction could create competing instances with inconsistent state.
-A Singleton makes construction controlled and gives callers a known access route.
+Sometimes several independently created objects would disagree about information
+that should be shared. Limiting creation can prevent those competing copies.
 
-However, “the application currently creates one object” is not enough justification.
-One object constructed in `main()` and passed to its users can satisfy the same
-instance-count requirement without hidden global dependencies.
+However, needing one object does not always require Singleton. You can create one
+object in `main()` and pass it to the code that needs it. Singleton additionally
+makes that object reachable through a common access function throughout the program.
 
-## 3. Understand the Mechanism
+## 3. Understand the Idea Step by Step
 
-Construction is inaccessible to ordinary clients. A controlled accessor creates or
-retrieves the one instance. Copying must not provide an accidental second instance.
-Lifetime and initialization order become part of the type's contract.
+1. Stop ordinary callers from constructing the class directly.
+2. Provide a function that returns the one object.
+3. Create the object on first use, then return the same object on later calls.
+4. Prevent copying from accidentally creating a second instance.
 
-Separate three questions: is initialization safe, is later access safe, and is
-shutdown safe? Synchronizing initialization does not synchronize mutations. Likewise,
-a unique process-local instance does not ensure uniqueness across processes or
-machines. An access pattern is not a distributed coordination mechanism.
+The **constructor** initializes a new object. Making it **private** allows the class
+to control who calls it. A **static member function** can be called without first
+creating an object. Those features support the access function in this example.
+
+### Picture: Different Readers Reach the Same Settings
+
+Read the arrows as "asks for." There is only one settings box at the bottom.
+
+```mermaid
+flowchart TD
+    First["Part A needs settings"] --> Access["Ask the shared access function"]
+    Second["Part B needs settings"] --> Access
+    Access --> One["The same settings object"]
+```
+
+**Read it as a sentence:** A and B ask the same function and receive access to the
+same object, not two equal-looking copies.
+
+Creating the object safely is different from changing it safely. If several threads
+change shared data, they still need rules that prevent conflicting updates. A
+**thread** is a separately running sequence of work within the program. One object
+in one program also does not mean one object across several programs or machines.
 
 ## 4. Real-World Scenario
 
-Suppose a small command-line application exposes immutable build metadata: version,
-build identifier, and enabled features. Every component should see the same data,
-and it never changes during execution. A globally accessible immutable object can
-be workable here, although namespace constants may be simpler.
+A small command-line tool might expose fixed build information: its version and
+enabled features. Every part reads the same values, and no part changes them.
+A shared read-only object may be suitable, though ordinary constants may be simpler.
 
-Contrast that with application settings that differ for each customer session.
-Making those settings global would prevent independent sessions and isolated tests.
-The first scenario has uniform process lifetime; the second has multiple legitimate
-contexts. Singleton is often misused by treating those contexts as one.
+Settings that differ for each signed-in user are a poor fit. One shared setting
+could accidentally apply one user's preferences to everyone else.
 
 ## 5. Understand the C++ Example
 
 Open [singleton.cpp](../../../patterns/creational/singleton.cpp).
 
-`Settings` has a private constructor and deleted copy operations. Its static
-`instance()` function returns a const reference to a function-local static object.
+`Settings::instance()` is the access function. It returns a `const` reference:
+another name for the existing object, with no permission to modify it through that reference.
 
-1. The first call reaches `static const Settings settings` and initializes it.
-2. Later calls return that same object rather than constructing another.
-3. Comparing addresses verifies identity, not merely equal field values.
-4. Reading `application_name()` returns `Pattern demo`.
-5. The const public interface offers no operation that mutates shared settings.
+1. The first call creates `static const Settings settings` inside the function.
+2. Here, `static` makes the local object persist after the function returns.
+3. Later calls return the same settings object.
+4. Comparing addresses proves the calls reached one object, not copies.
+5. Reading the application name gives `Pattern demo`.
 
-C++11 and later synchronize initialization of the function-local static. This
-example does not test mutable concurrent access or shutdown interactions. Other
-static destructors must not use this object after its lifetime has ended.
+The constructor is private and copying is disabled. C++11 and later protect this
+first initialization when threads arrive together. That does not protect later
+changes to an ordinary field. At shutdown, other objects must not use these settings
+after the settings object has already been destroyed.
 
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** controlled construction, convenient access, and potentially lazy
-initialization of genuinely uniform process-wide state.
+**Benefits:** controlled creation, one convenient access point, and creation delayed
+until the first request.
 
-**Drawbacks:** hidden dependencies, test interference, inflexible configuration,
-shutdown-order hazards, and mutable-global contention. Plugins and shared-library
-linkage can complicate assumptions about process-wide uniqueness.
+**Drawbacks:** shared state can make tests affect one another. Code may quietly
+depend on the global object. Different configurations and shutdown cleanup become
+harder. Libraries and plug-ins can also complicate whether there really is one copy.
 
-Prefer an application-owned object with dependency injection when clients need
-different configurations or explicit lifetime. Use constants for simple fixed
-metadata. `thread_local` means one instance per thread, not one global instance.
+**Use it carefully:** prefer a read-only shared object when global access is truly
+needed. Often, creating one object in `main()` and passing it to users is clearer.
 
 ## 7. Check Your Understanding
 
-**Question:** Does a thread-safe `instance()` make an ordinary counter field safe?
+**Question:** If first creation is safe across threads, can all threads freely
+increment a normal counter stored in the Singleton?
 
-**Answer:** No. Initialization and later mutation are different operations. A
-counter needs its own synchronization or an atomic representation with suitable
-semantics. Restricting instance count does not prevent data races.
+**Answer:** No. Safe creation only protects creation. Updating the counter still
+needs a lock or an appropriate atomic counter, which is a type designed for certain
+indivisible updates. Having one counter does not prevent two threads from conflicting.
 
-See the [creational technical notes](../../../patterns/creational/README.md).
+Optional detail: [creational technical notes](../../../patterns/creational/README.md).

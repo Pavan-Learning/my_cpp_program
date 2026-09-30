@@ -2,85 +2,97 @@
 
 ## 1. Definition
 
-Prototype is a creational pattern that creates new objects by copying existing
-configured objects. In a polymorphic system, the original object supplies a cloning
-operation that preserves its actual runtime type.
+**Prototype creates a new object by copying an existing object that already has
+the settings you want.** The existing object is the example to copy, called the
+prototype. The copying operation is often named `clone()`.
 
-The central idea is **start from this configured example**, rather than “construct
-this class and repeat every configuration step.”
+Imagine duplicating a styled text box in an editor. The new box starts with the
+same font, size, and color. You can then change its text without editing the first box.
 
 ## 2. The Problem It Solves
 
-A caller may know only an abstract interface while needing an independent object
-with the same current configuration. It cannot name the correct derived constructor.
-Copying a base value can discard derived data, and reconstructing from scratch may
-lose settings that the caller does not understand.
+Creating a new object from scratch may require repeating many settings. Worse, the
+code requesting the copy may only know that it has a shape, not whether it is a
+circle or rectangle. It does not know which exact shape constructor to call.
 
-Copying a pointer is not the answer: that creates another handle to the same object.
-The design must state which state is duplicated and which state, if any, is shared.
+Let the existing shape create its own copy. A circle knows how to copy a circle;
+a rectangle knows how to copy a rectangle.
 
-## 3. Understand the Mechanism
+## 3. Understand the Idea Step by Step
 
-A prototype interface declares `clone()`. Every concrete prototype implements the
-operation using its knowledge of its real type and state. The caller gets a new
-owned object through the common interface.
+1. Give each supported kind of object a `clone()` operation.
+2. Ask an existing object to clone itself.
+3. Receive a new object with the same relevant settings.
+4. Change the new object without changing the original where independence is required.
 
-Cloning is a semantic decision. Independent mutable fields usually need independent
-storage. Immutable resources may be shared. Identity, subscriptions, file handles,
-and mutexes often must be reset, recreated, or excluded. A deep copy of an object
-graph must preserve intended sharing and handle cycles; blindly recursing is not
-a complete clone algorithm.
+A **pointer** stores how to reach an object. Copying a pointer merely gives another
+way to reach the same object. A clone creates another object. These are not the same.
+
+### Picture: Two Objects After the Copy
+
+Read downward. The final boxes describe the two objects after editing the copy.
+
+```mermaid
+flowchart TD
+    Original["1. Start with one red circle"] --> Copy["2. Make a second red circle"]
+    Copy --> Edit["3. Change only the second circle to blue"]
+    Edit --> First["First circle is still red"]
+    Edit --> Second["Second circle is blue"]
+```
+
+**Read it as a sentence:** copy the red circle, edit the copy, and keep the original red.
+
+Decide what a copy should share. Text that users edit usually needs a separate value.
+A large read-only font resource might be shared. **Read-only** means callers cannot
+change it. Open files and unique identifiers may need special treatment rather than
+blind copying. Copying a network of objects is more complicated than copying one circle.
 
 ## 4. Real-World Scenario
 
-Imagine a diagram editor with a library of configured symbols. A user chooses a
-styled process box, duplicates it, then edits only the duplicate's caption.
-Reconstructing every style setting manually is unnecessary; the selected symbol
-already embodies the desired configuration.
+A diagram editor lets users save a styled process box and duplicate it many times.
+Each copy keeps the style but gets its own position and editable caption. It should
+usually get a new identifier too, so selecting one box does not select another.
 
-The duplicate needs its own editable caption and position. It might share an
-immutable font resource, but it should normally receive a new document identity.
-Copying the old identity could corrupt selection or history bookkeeping. Prototype
-solves object creation from an exemplar, not the entire document duplication policy.
+Copying the box saves repeated setup. The application must still decide which
+document-specific properties, such as the identifier, should not be copied unchanged.
 
 ## 5. Understand the C++ Example
 
 Open [prototype.cpp](../../../patterns/creational/prototype.cpp).
 
-`Shape` defines the clone and behavior interface. `Circle` stores a radius and
-color. Its `clone()` creates a `Circle` from `*this` and returns it as
-`unique_ptr<Shape>`.
+`Shape` provides the common operations. `Circle` supplies its own `clone()` function.
+This function creates a new `Circle` from `*this`, which means the current circle.
 
-1. The original circle begins with radius 5 and color red.
-2. Calling `clone()` invokes `Circle`'s implementation, preserving circle data.
-3. The generated copy constructor copies the integer and the string value.
-4. The first check confirms equivalent descriptions.
-5. Changing the clone's color to blue changes its own string, not the original's.
-6. The remaining checks confirm `red circle r=5` and `blue circle r=5`.
+1. The original circle has radius 5 and color red.
+2. `clone()` makes a new circle with those values.
+3. A check confirms that the descriptions initially match.
+4. Changing the clone's color to blue changes only its own string.
+5. The final descriptions are `red circle r=5` and `blue circle r=5`.
 
-The original is a stack value; the clone has exclusive dynamic ownership. The
-string member provides independent value storage. Replacing it with a shared
-mutable pointer would change that independence even if `clone()` stayed unchanged.
+The **copy constructor** is the C++ operation that initializes an object from another
+object of its type. Here, the generated copy constructor copies the number and the
+string correctly. `unique_ptr<Shape>` owns the new circle and automatically destroys
+it later. If a field were a pointer to shared editable data, simply copying that
+pointer would not make the data independent.
 
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** preserves runtime type, reuses existing configuration, and keeps
-concrete copy knowledge out of clients.
+**Benefits:** reuse an existing configuration; keep the actual shape type; avoid
+making the requesting code understand every shape's construction details.
 
-**Drawbacks:** each subtype needs a correct cloning policy. Complex graphs and
-external resources make copying expensive or ambiguous. A clone is not necessarily
-cheaper than construction.
+**Drawbacks:** deciding what to copy can be difficult. Large copies cost time and
+memory. Files, locks, and linked objects often need extra rules. Cloning is not
+automatically faster than normal construction.
 
-Use normal value copying when the concrete type is known. Use Builder when the
-product is assembled from choices rather than copied from an existing exemplar.
-A prototype registry can supply named templates, but also needs lifetime rules.
+**Use it when:** copying an already configured object is the natural starting point.
+If its exact type is already known, ordinary C++ value copying may be enough.
 
 ## 7. Check Your Understanding
 
-**Question:** Does copying a `shared_ptr` implement an independent clone?
+**Question:** Does copying a `shared_ptr` give me an independent copy of its object?
 
-**Answer:** No. Both handles point to the same object. Sharing can be intentional
-for immutable resources, but independent mutable state requires a new object and
-an appropriate copy policy.
+**Answer:** No. `shared_ptr` is a pointer that shares responsibility for keeping one
+object alive. Copying it gives two pointers to that same object. To edit a separate
+object, create an actual copy of the object's relevant data.
 
-See the [creational technical notes](../../../patterns/creational/README.md).
+Optional detail: [creational technical notes](../../../patterns/creational/README.md).

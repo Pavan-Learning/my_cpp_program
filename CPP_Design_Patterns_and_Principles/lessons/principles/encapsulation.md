@@ -2,77 +2,95 @@
 
 ## 1. Definition
 
-Encapsulation groups state with the operations that govern it and controls access
-through an API. Information hiding keeps internal representation and changeable
-implementation decisions outside that API. Together, they let an object maintain
-its invariants rather than relying on every caller to do so.
+**Encapsulation keeps an object's data together with the operations that safely
+use and change it. Outside code asks for those operations instead of freely editing
+the data.**
+
+For example, ask an account to withdraw money rather than directly subtracting from
+its balance. The account can check whether the amount is valid and funds are sufficient.
 
 ## 2. The Problem It Solves
 
-Public mutable fields allow any caller to create invalid combinations or bypass
-business rules. Replacing those fields with unrestricted getters and setters may
-change syntax without improving the situation.
+If any caller can assign any balance, every caller must remember every account rule.
+One might accidentally create a negative balance or overwrite an earlier update.
 
-The important question is who can create or change valid state. A useful API exposes
-domain operations, not merely remote control of every private field.
+Making the field private helps only if the public functions also protect it. A
+`set_balance(any_number)` function that accepts everything still bypasses the rules.
 
-## 3. Understand the Principle
+## 3. Understand the Idea Step by Step
 
-An invariant is a condition that must hold for every valid observable object state.
-Constructors establish it, operations preserve it, and read APIs avoid exposing
-mutable access that bypasses it.
+1. Identify the rules the object must keep.
+2. Stop outside code from changing the stored fields directly.
+3. Offer meaningful actions, such as deposit or withdraw.
+4. Validate each action before changing the data.
+5. Allow safe questions, such as returning a copy of the current balance.
 
-Information hiding also protects evolution. Clients calling `reserve()` need not
-know whether stock is a field, database record, or computed aggregate. The operation's
-contract can remain stable while representation changes.
+An **invariant** is a rule that stays true during normal use, such as a nonnegative
+balance. An **API** is the set of operations available to callers. **Information
+hiding** means callers need not know changeable internal details, such as how the balance is stored.
 
-Encapsulation is not secrecy or a complete security mechanism. C++ access control
-helps structure trusted code; it does not isolate hostile machine code in the same
-process or replace authorization at system boundaries.
+### Picture: One Withdrawal Request
+
+Read downward. Only the yes path is allowed to change the stored balance.
+
+```mermaid
+flowchart TD
+    Ask["Request a withdrawal"] --> Check{"Valid amount and enough money?"}
+    Check -->|Yes| Update["Subtract the amount"]
+    Check -->|No| Reject["Report failure and leave balance unchanged"]
+```
+
+**Read it as a sentence:** the account checks the request before allowing a change.
+The caller does not get direct editing access to the balance.
+
+This protects program structure, not against every hostile action. C++ `private`
+helps cooperating code use a class correctly; it is not a security barrier against
+malicious machine code running in the same process.
 
 ## 4. Real-World Scenario
 
-A ticket inventory should never sell more seats than it owns. Exposing a seat-count
-setter lets callers accidentally create negative availability or overwrite another
-reservation. A `reserve(quantity)` operation can validate and update consistently.
+A ticket service offers `reserve(quantity)` instead of an unrestricted seat-count
+setter. It checks that enough seats remain and changes the count only for a valid request.
 
-Production concurrency still requires atomic enforcement. The encapsulated API
-is the place to implement that enforcement, not proof that it already exists.
+When several customers reserve simultaneously, the service also needs protection
+against conflicting updates. The operation is the right place for that protection,
+but simply naming it `reserve` does not implement it.
 
 ## 5. Understand the C++ Example
 
 Open [encapsulation.cpp](../../principles/encapsulation.cpp).
 
-`Account` hides its balance and exposes deposit, withdrawal, and a value-returning query.
+`Account` keeps a private balance and exposes deposit, withdrawal, and a balance query.
 
-1. Depositing 500 raises the balance from zero to 500.
-2. Withdrawing 200 succeeds and leaves 300.
-3. Withdrawing 400 returns false and preserves the balance.
-4. A deposit that would overflow is rejected before arithmetic changes state.
-5. Checks verify all outcomes, including the unchanged balance after rejection.
+1. Start at zero and deposit 500, giving 500.
+2. Withdraw 200 successfully, leaving 300.
+3. Attempt to withdraw 400; it returns false and leaves 300 unchanged.
+4. A deposit that would exceed the integer type's maximum is rejected before addition.
+5. Checks verify the successful changes and unchanged balance after rejection.
 
-The overflow condition compares against `max - balance_` before addition.
-`balance()` returns a copy, so callers cannot mutate the field through the query.
-Invalid arguments and ordinary insufficient-funds results use distinct failure paths.
+Exceeding a number type's range is called **overflow**. The code compares the amount
+with `max - balance_` first instead of overflowing and checking afterward.
+`balance()` returns a copy, so editing that returned number cannot edit the account.
+Invalid amounts report errors differently from an ordinary insufficient-funds result.
 
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** centralized validity, reduced caller assumptions, and safer internal
-representation changes.
+**Benefits:** rules are checked in one place; callers need fewer assumptions; internal
+storage can change without rewriting every caller.
 
-**Drawbacks:** an overly restrictive API can become awkward, and excessive forwarding
-can obscure simple data. Data-transfer records may appropriately expose plain values.
+**Drawbacks:** too few useful operations make a class awkward. Excessive layers of
+forwarding can hide simple data. Plain records used only to carry data may not need
+the same protection as an account with strict rules.
 
-Protect domain invariants where they exist. Do not add private fields and trivial
-setters merely for appearance. Tell, Don't Ask complements encapsulation by moving
-decisions to the object that owns the relevant rule.
+**Use it to protect actual rules:** do not add private fields and unrestricted
+setters merely to make code look object-oriented.
 
 ## 7. Check Your Understanding
 
-**Question:** Does a public `set_balance(-100)` preserve encapsulation's purpose
-just because the actual field is private?
+**Question:** Does `set_balance(-100)` become safe merely because the field is private?
 
-**Answer:** No. It still allows callers to violate the intended invariant. An API
-must control meaningful state transitions, not only field visibility.
+**Answer:** No. It still allows an invalid balance if negative balances are forbidden.
+The useful protection comes from the allowed operations and their checks, not the
+field's visibility alone.
 
-See the [principles technical notes](../../principles/README.md).
+Optional detail: [principles technical notes](../../principles/README.md).

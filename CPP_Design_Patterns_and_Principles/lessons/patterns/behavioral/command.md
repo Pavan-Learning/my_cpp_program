@@ -2,77 +2,97 @@
 
 ## 1. Definition
 
-Command is a behavioral pattern that represents a request as an object containing
-the information needed to perform it. This separates the object requesting work
-from the object that knows how to do it, allowing requests to be queued, recorded,
-composed, or undone when the domain supports those operations.
+**Command stores an action as an object, including the information needed to perform it.**
+Because it is stored, the action can be run later, kept in a history, or sometimes undone.
+
+For example, an "append text" command remembers which document to edit and what
+text to add. It can also remember the previous length so it can undo that addition.
 
 ## 2. The Problem It Solves
 
-A direct function call executes and disappears. A menu action, keyboard shortcut,
-automation script, and task queue may all need the same operation, possibly later.
-Undo also requires remembering information about the operation that occurred.
+A direct function call performs work immediately. Afterward, it does not automatically
+leave a record explaining how to undo the work. Menu buttons and keyboard shortcuts
+may also need to trigger the same action without repeating the editing code.
 
-The application needs requests to have identity and lifetime beyond one call
-expression. Turning them into objects makes that information explicit.
+Represent the request as a command. Buttons, shortcuts, and a history manager can
+all run that command without knowing how the document stores text.
 
-## 3. Understand the Mechanism
+## 3. Understand the Idea Step by Step
 
-The client creates a command with its parameters and receiver. An invoker executes
-the command through a common interface. The receiver performs domain work. The
-command can retain information needed for undo or result inspection.
+1. Create a command with the target document and requested text.
+2. Run its `execute()` function to apply the change.
+3. Keep the command in a history if undo is supported.
+4. Call its `undo()` to reverse its particular change.
+5. Redo runs the action again when the document is in the appropriate earlier state.
 
-Undo is optional, not inherent. Some commands have a precise inverse; others need
-a saved snapshot. External effects may require compensation rather than reversal.
-Replaying a command is also not always safe: retries can duplicate payments or
-messages unless the operation has an idempotency contract.
+The **receiver** is the object being changed, here the document. The **invoker** is
+the code asking a command to run, here the history manager. The **command** knows
+the action and its needed data. These are names for three jobs, not requirements
+to memorize before understanding an append operation.
+
+### Picture: One Edit, Undo, Redo
+
+Read downward. Each box is the document text after the labeled action.
+
+```mermaid
+flowchart TD
+    Start["Text: hello"] -->|Append world| Edited["Text: hello world"]
+    Edited -->|Undo the append| Undone["Text: hello"]
+    Undone -->|Redo the append| Redone["Text: hello world"]
+```
+
+**Read it as a sentence:** append adds the text, undo removes that addition, and redo
+adds it again. The command keeps enough information to do its own reversal.
+
+Undo is not automatic for every action. Sending an email cannot be undone merely
+by restoring a local variable. Similarly, retrying a payment could charge twice
+unless the payment system explicitly recognizes repeated requests.
 
 ## 4. Real-World Scenario
 
-In a photo editor, menu actions and shortcuts both create editing commands. A
-history manager stores them, allowing the user to undo a crop or adjustment. A
-batch-processing tool can invoke similar operations without using the GUI.
+A photo editor lets both a menu and a shortcut create a crop command. The command
+records the crop and enough earlier image data to undo it. The history stores the
+command without knowing how cropping works.
 
-A crop might save removed pixels or a previous image snapshot; an upload command
-cannot simply “un-upload” an image without a separate remote deletion operation.
-The request representation is reusable, but each operation's undo semantics differ.
+Large images may make saved undo data expensive. Uploading an image to a server
+needs a separate deletion request to reverse its external effect, if reversal is allowed.
 
 ## 5. Understand the C++ Example
 
 Open [command.cpp](../../../patterns/behavioral/command.cpp).
 
-`Document` is the receiver. `Append` stores text and a borrowed document reference.
-`History` owns commands in done and undone stacks.
+`Document` holds text. `Append` records the document, added text, and previous length.
+`History` keeps lists of completed and undone commands.
 
-1. Appending `hello` records the previous document length, then adds the text.
-2. Appending ` world` produces `hello world`.
-3. Undo truncates to the saved length, restoring `hello`.
-4. Redo executes that command again, restoring `hello world`.
-5. Undo followed by a new ` C++` edit clears the abandoned redo branch.
-6. The final output is `hello C++`; empty-history operations are also checked.
+1. Append `hello`, then ` world`, producing `hello world`.
+2. Undo shortens the document to the saved length, leaving `hello`.
+3. Redo adds ` world` again.
+4. Undo again, then append ` C++` instead.
+5. The result is `hello C++`; the abandoned redo list is cleared.
+6. Checks also cover asking for undo or redo when the corresponding list is empty.
 
-History reserves vector space before changing the document, avoiding an allocation
-failure that would lose the history record after an edit. Commands borrow the
-document, so it must outlive them. Undo assumes last-in-first-out changes through
-this history; unrelated external edits would invalidate its saved-length logic.
+Commands borrow the document, so it must remain alive while they use it. Undo assumes
+the most recent edit is undone first and no unrelated code has changed the text.
+History reserves room in its list before editing, so failure to obtain memory does
+not leave an edit without its history record.
 
 ## 6. Benefits, Drawbacks, and Alternatives
 
-**Benefits:** reusable invocation paths, explicit request data, deferred execution,
-and a natural home for history or macros.
+**Benefits:** one action can be triggered in different ways, delayed, stored, or used
+in a history. Action-specific data stays beside the code that uses it.
 
-**Drawbacks:** extra objects and retained state, receiver-lifetime concerns, and
-potentially complicated undo, exception, and retry semantics.
+**Drawbacks:** extra objects and saved data; the target must stay alive; undo and
+retry rules can be difficult, especially for actions outside the program.
 
-Use a callable for a simple one-off task. Use a command object when request metadata,
-history, or domain-specific behavior matters. Memento captures state rather than
-an action, and a command may use a memento to implement undo.
+**Use it when:** actions need history, metadata, or delayed execution. A plain function
+is enough for many immediate one-off tasks. Memento stores an earlier state, while
+Command stores an action; a command can use a memento to support undo.
 
 ## 7. Check Your Understanding
 
-**Question:** Why does a new edit invalidate redo history?
+**Question:** Why clear redo after making a new edit following undo?
 
-**Answer:** It creates a different future from the restored state. Replaying the
-old future could apply operations to a document state they were not designed for.
+**Answer:** The document now follows a different sequence of edits. The saved redo
+commands describe the abandoned sequence and may no longer be valid for the new text.
 
-See the [behavioral technical notes](../../../patterns/behavioral/README.md).
+Optional detail: [behavioral technical notes](../../../patterns/behavioral/README.md).

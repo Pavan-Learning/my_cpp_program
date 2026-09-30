@@ -1,19 +1,47 @@
 # Concept-First Lessons: Patterns and Principles
 
-Start here to understand a topic before studying its implementation. Each of the
-42 standalone lessons follows this order:
+Start here if design patterns and design principles are new to you. You do not need
+to memorize pattern names or class diagrams before reading. Start with the ordinary
+problem, follow the small picture, then connect that idea to the C++ names.
+
+The 42 lessons explain their important technical words where they are used. The
+glossary is an optional reminder, not required reading before every lesson. For a
+worked starting point, open [Factory Method](patterns/creational/factory_method.md):
+road delivery creates a truck, sea delivery creates a ship, and both reuse the same steps.
+
+Each lesson follows this order:
 
 1. **Definition:** what the pattern or principle means in plain language.
 2. **The problem it solves:** why the idea is needed and what goes wrong without it.
-3. **Deeper explanation:** how it works, its important distinctions, and its limits.
-4. **Real-world scenario:** an illustrative practical situation, independent of the code.
-5. **C++ walkthrough:** the actual source, participant roles, execution steps, and checks.
+3. **Step-by-step idea and picture:** explain the parts, define new words, and follow one clear example.
+4. **Real-world scenario:** another practical situation showing where the idea helps.
+5. **C++ walkthrough:** what the code names mean, what runs first, and what answers the checks expect.
 6. **Benefits and drawbacks:** when to use it, when not to, and simpler alternatives.
 7. **Question and answer:** a common misunderstanding explained directly in the lesson.
 
-Real-world scenarios illustrate possible designs; they do not claim that a named
-commercial product uses a particular implementation. The small runnable programs
-demonstrate mechanisms, not complete production systems.
+The scenarios describe possible designs, not claims about how a particular commercial
+product is built. The small programs teach an idea; they are not finished payment,
+security, traffic-control, or other production systems.
+
+## Viewing the Diagrams
+
+Every lesson includes a small picture in section 3. There are at most six boxes,
+with the drawing arranged from top to bottom. The explanation above it tells you
+what its arrows mean; the **Read it as a sentence** paragraph below walks through it.
+
+- A rectangle names a thing, a value, or a step, as explained in that lesson.
+- A diamond asks a question. Follow the arrow labeled with the appropriate answer.
+- An arrow can mean "next step," "uses," or "contains." Use the stated meaning for
+	that picture; not every diagram shows calls happening over time.
+- The picture teaches one idea. The walkthrough below it explains the actual C++
+	calls and any details deliberately left out of the picture.
+
+Diagrams use Mermaid code blocks. GitHub renders them in its normal Markdown file
+view. In VS Code, open Markdown Preview with `Ctrl+Shift+V`; the preview needs Mermaid
+support. If it shows the word `flowchart` and arrows such as `-->`
+instead of a picture, that preview is displaying source rather than rendering
+Mermaid. Use a Mermaid-capable preview or GitHub's rendered file view. The plain
+text editor always shows the diagram source.
 
 ## How the Lessons Are Grouped
 
@@ -39,18 +67,18 @@ The lessons also explain important terms where they are introduced.
 
 | Topic | What you will understand |
 | --- | --- |
-| [Factory Method](patterns/creational/factory_method.md) | Keep the same workflow but let a subclass choose which object to create |
+| [Factory Method](patterns/creational/factory_method.md) | Reuse the same delivery steps while road and sea versions create different vehicles |
 | [Abstract Factory](patterns/creational/abstract_factory.md) | Create a matching set of objects, such as light-theme buttons and checkboxes |
 | [Builder](patterns/creational/builder.md) | Prepare an object step by step and check it before use |
 | [Prototype](patterns/creational/prototype.md) | Create an object by copying an already configured one |
-| [Singleton](patterns/creational/singleton.md) | Keep one shared instance and understand the testing and lifetime costs |
+| [Singleton](patterns/creational/singleton.md) | Share one object and understand why global access can make testing harder |
 
 ## Structural Patterns
 
 | Topic | What you will understand |
 | --- | --- |
 | [Adapter](patterns/structural/adapter.md) | Help existing code work with an interface it was not designed for |
-| [Bridge](patterns/structural/bridge.md) | Let two related choices, such as shape and renderer, change separately |
+| [Bridge](patterns/structural/bridge.md) | Choose the shape separately from the tool used to draw it |
 | [Composite](patterns/structural/composite.md) | Use the same operation on one item or a group of items |
 | [Decorator](patterns/structural/decorator.md) | Add behavior by wrapping an object, and see why wrapper order matters |
 | [Facade](patterns/structural/facade.md) | Offer one simple entry point to several cooperating parts |
@@ -61,16 +89,16 @@ The lessons also explain important terms where they are introduced.
 
 | Topic | What you will understand |
 | --- | --- |
-| [Chain of Responsibility](patterns/behavioral/chain_of_responsibility.md) | Pass a request through handlers and decide when to stop |
+| [Chain of Responsibility](patterns/behavioral/chain_of_responsibility.md) | Pass a request through separate checks and stop when a check rejects it |
 | [Command](patterns/behavioral/command.md) | Store an action as an object so it can be run, undone, or redone |
-| [Interpreter](patterns/behavioral/interpreter.md) | Represent and evaluate the rules of a small language |
+| [Interpreter](patterns/behavioral/interpreter.md) | Build and work out a rule such as signed in AND paid |
 | [Iterator](patterns/behavioral/iterator.md) | Visit collection items one by one, and know when an iterator becomes invalid |
 | [Mediator](patterns/behavioral/mediator.md) | Put coordination rules in one place instead of connecting every object to every other |
 | [Memento](patterns/behavioral/memento.md) | Save and restore an object's state without exposing its private details |
 | [Observer](patterns/behavioral/observer.md) | Notify interested listeners when something happens |
 | [State](patterns/behavioral/state.md) | Change an object's behavior when its current mode changes |
 | [Strategy](patterns/behavioral/strategy.md) | Choose between different ways to perform the same job |
-| [Template Method](patterns/behavioral/template_method.md) | Keep a fixed sequence of steps while subclasses customize selected steps |
+| [Template Method](patterns/behavioral/template_method.md) | Keep report steps in order while different reports supply their own content |
 | [Visitor](patterns/behavioral/visitor.md) | Add new operations to known object types without putting every operation inside them |
 
 ## SOLID Principles
@@ -79,7 +107,7 @@ The lessons also explain important terms where they are introduced.
 | --- | --- |
 | [Single Responsibility](solid/srp.md) | Keep work that changes for different reasons in separate places |
 | [Open/Closed](solid/ocp.md) | Make expected additions possible without repeatedly rewriting stable code |
-| [Liskov Substitution](solid/lsp.md) | A derived type must keep the promises made by its base type |
+| [Liskov Substitution](solid/lsp.md) | A replacement must keep the promises that existing callers rely on |
 | [Interface Segregation](solid/isp.md) | Give callers the operations they need, without forcing unrelated ones on them |
 | [Dependency Inversion](solid/dip.md) | Let business rules depend on needed services, not a particular database or tool |
 
@@ -104,8 +132,9 @@ The lessons also explain important terms where they are introduced.
 
 ## Additional Reading and Running Examples
 
-The original category chapters retain diagrams, comparison tables, and additional
-implementation caveats. Each lesson links to its category's notes and source.
+The original category chapters are optional advanced notes with comparisons and
+more technical detail. Learn the idea in its lesson first. Each lesson links to
+its runnable source and the relevant advanced notes.
 Use the [collection README](../README.md) for build commands and the executable index.
 
 For C++ idioms, architecture, concurrency, and topics beyond the canonical GoF set,
