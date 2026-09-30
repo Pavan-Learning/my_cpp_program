@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="420" viewBox="0 0 1000 420" role="img" aria-labelledby="title desc">
+  <title id="title">Mutex and RAII lock ownership</title><desc id="desc">Two workers use the same mutex to access a counter. A named guard acquires at scope entry and releases at scope exit.</desc>
+  <rect width="1000" height="420" fill="#f8fafc"/>
+  <g font-family="sans-serif" fill="#18212f">
+    <text x="40" y="50" font-size="28" font-weight="bold">One shared counter. One shared locking protocol.</text>
+    <rect x="40" y="110" width="230" height="100" rx="8" fill="#dbeafe" stroke="#2563eb"/><text x="65" y="151" font-size="22">Worker 1</text><text x="65" y="183" font-size="18">10000 increments</text>
+    <rect x="40" y="240" width="230" height="100" rx="8" fill="#dcfce7" stroke="#15803d"/><text x="65" y="281" font-size="22">Worker 2</text><text x="65" y="313" font-size="18">10000 increments</text>
+    <path d="M270 160 H340 V225 H410 M270 290 H340 V225" fill="none" stroke="#334155" stroke-width="3"/>
+    <rect x="410" y="160" width="230" height="130" rx="8" fill="#fef3c7" stroke="#a16207"/><text x="435" y="203" font-size="22">counter_mutex</text><text x="435" y="243" font-size="18">Only one owner</text>
+    <path d="M640 225 H700" stroke="#334155" stroke-width="3"/>
+    <rect x="700" y="160" width="260" height="130" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="725" y="204" font-size="22">++counter</text><text x="725" y="244" font-size="18">Final value: 20000</text>
+    <text x="40" y="389" font-size="19">Named RAII guard: acquire on construction, release on scope exit.</text>
+  </g>
+</svg>

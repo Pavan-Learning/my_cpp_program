@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="460" viewBox="0 0 1000 460" role="img" aria-labelledby="title desc">
+  <title id="title">Release acquire happens-before chain</title><desc id="desc">Payload writes precede a release store. An acquire load reads that store and precedes payload reads. This chain orders the ordinary memory accesses.</desc>
+  <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0 0 L8 3 L0 6" fill="#334155"/></marker></defs>
+  <rect width="1000" height="460" fill="#f8fafc"/>
+  <g font-family="sans-serif" fill="#18212f">
+    <text x="40" y="50" font-size="28" font-weight="bold">Publish data through a matching release / acquire</text>
+    <text x="70" y="111" font-size="23">Producer</text><text x="660" y="111" font-size="23">Consumer</text>
+    <rect x="40" y="140" width="360" height="65" rx="8" fill="#dbeafe" stroke="#2563eb"/><text x="60" y="181" font-size="20">Write payload = {3, 7, 11}</text>
+    <rect x="40" y="260" width="360" height="65" rx="8" fill="#dcfce7" stroke="#15803d"/><text x="60" y="301" font-size="20">ready.store(true, release)</text>
+    <rect x="620" y="140" width="340" height="65" rx="8" fill="#dcfce7" stroke="#15803d"/><text x="640" y="181" font-size="20">load(acquire) reads true</text>
+    <rect x="620" y="260" width="340" height="65" rx="8" fill="#dbeafe" stroke="#2563eb"/><text x="640" y="301" font-size="20">Read payload: sum = 21</text>
+    <path d="M220 205 V250 M790 205 V250 M400 280 L610 180" fill="none" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
+    <text x="412" y="328" font-size="17">synchronizes-with</text>
+    <text x="40" y="389" font-size="20">Payload writes happen before payload reads.</text>
+    <text x="40" y="428" font-size="18">One publication only; later buffer reuse needs a new ownership protocol.</text>
+  </g>
+</svg>

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="460" viewBox="0 0 1000 460" role="img" aria-labelledby="title desc">
+  <title id="title">Reusable barrier phase completion</title><desc id="desc">Three workers write 1, 2, 3 in phase one and wait. Completion adds six. In phase two they write 2, 4, 6 and wait. Completion adds twelve for a total of eighteen.</desc>
+  <rect width="1000" height="460" fill="#f8fafc"/>
+  <g font-family="sans-serif" fill="#18212f">
+    <text x="40" y="50" font-size="28" font-weight="bold">All arrivals, completion, then the next phase</text>
+    <rect x="40" y="120" width="270" height="170" rx="8" fill="#dbeafe" stroke="#2563eb"/><text x="60" y="163" font-size="23">Phase 1</text><text x="60" y="207" font-size="21">Slots: 1, 2, 3</text><text x="60" y="251" font-size="18">Three arrivals + waits</text>
+    <rect x="365" y="120" width="270" height="170" rx="8" fill="#fef3c7" stroke="#a16207"/><text x="385" y="163" font-size="23">Completion</text><text x="385" y="207" font-size="21">Add 6</text><text x="385" y="251" font-size="18">Before slots are reused</text>
+    <rect x="690" y="120" width="270" height="170" rx="8" fill="#dcfce7" stroke="#15803d"/><text x="710" y="163" font-size="23">Phase 2</text><text x="710" y="207" font-size="21">Slots: 2, 4, 6</text><text x="710" y="251" font-size="18">Completion adds 12</text>
+    <path d="M310 205 H365 M635 205 H690" stroke="#334155" stroke-width="3"/>
+    <text x="40" y="350" font-size="22">Two phases. Final total: 6 + 12 = 18.</text>
+    <text x="40" y="396" font-size="18">A separate startup gate keeps partial thread creation out of the phase protocol.</text>
+    <text x="40" y="428" font-size="18">Every participant must arrive or follow a valid departure protocol.</text>
+  </g>
+</svg>

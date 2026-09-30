@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="440" viewBox="0 0 1000 440" role="img" aria-labelledby="title desc">
+  <title id="title">Atomic wait on a changed ready flag</title><desc id="desc">The producer writes payload, stores true with release ordering, and notifies. The consumer waits while false with acquire ordering and then reads the published sum twenty-six.</desc>
+  <rect width="1000" height="440" fill="#f8fafc"/>
+  <g font-family="sans-serif" fill="#18212f">
+    <text x="40" y="50" font-size="28" font-weight="bold">Wait while equal to the old value</text>
+    <rect x="40" y="115" width="420" height="195" rx="8" fill="#dbeafe" stroke="#2563eb"/><text x="65" y="157" font-size="23">Producer</text><text x="65" y="203" font-size="20">Write payload = {5, 8, 13}</text><text x="65" y="245" font-size="20">store(true, release)</text><text x="65" y="284" font-size="20">notify_one()</text>
+    <rect x="540" y="115" width="420" height="195" rx="8" fill="#dcfce7" stroke="#15803d"/><text x="565" y="157" font-size="23">Consumer</text><text x="565" y="203" font-size="20">wait(false, acquire)</text><text x="565" y="245" font-size="20">Return after observing true</text><text x="565" y="284" font-size="20">Read payload: sum = 26</text>
+    <path d="M460 240 H540" stroke="#334155" stroke-width="3"/>
+    <text x="40" y="365" font-size="20">The value persists even when the notification happens before the wait.</text>
+    <text x="40" y="407" font-size="18">Store + notify serves progress. Matching release + acquire publishes the data.</text>
+  </g>
+</svg>

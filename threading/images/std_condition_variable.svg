@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="440" viewBox="0 0 1000 440" role="img" aria-labelledby="title desc">
+  <title id="title">Bounded producer consumer queue</title><desc id="desc">The producer waits for space, the consumer waits for data. A single mutex protects items and closed state. Closing wakes both wait sets.</desc>
+  <rect width="1000" height="440" fill="#f8fafc"/>
+  <g font-family="sans-serif" fill="#18212f">
+    <text x="40" y="50" font-size="28" font-weight="bold">Wait for state, not for a remembered notification</text>
+    <rect x="35" y="130" width="270" height="160" rx="8" fill="#dbeafe" stroke="#2563eb"/><text x="55" y="167" font-size="22">Producer</text><text x="55" y="207" font-size="18">Wait: space or closed</text><text x="55" y="250" font-size="18">Push; notify not_empty</text>
+    <rect x="350" y="130" width="300" height="160" rx="8" fill="#fef3c7" stroke="#a16207"/><text x="375" y="167" font-size="22">Queue: capacity 3</text><text x="375" y="207" font-size="18">items + closed flag</text><text x="375" y="250" font-size="18">One shared mutex</text>
+    <rect x="695" y="130" width="270" height="160" rx="8" fill="#dcfce7" stroke="#15803d"/><text x="715" y="167" font-size="22">Consumer</text><text x="715" y="207" font-size="18">Wait: data or closed</text><text x="715" y="250" font-size="18">Pop; notify not_full</text>
+    <path d="M305 210 H350 M650 210 H695" stroke="#334155" stroke-width="3"/>
+    <text x="40" y="347" font-size="20">wait = check predicate + release mutex + suspend + reacquire + recheck</text>
+    <text x="40" y="391" font-size="19">close(): set state under lock, wake everyone, drain, then join before destruction.</text>
+  </g>
+</svg>

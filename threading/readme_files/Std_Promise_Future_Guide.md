@@ -2,13 +2,13 @@
 
 **One producer delivers one result. One consumer retrieves it later.**
 
-![An original visual guide to C++ promise and future](std_promise_future.svg)
+![An original visual guide to C++ promise and future](../images/std_promise_future.svg)
 
-Open [the infographic](std_promise_future.svg) for a larger view. The runnable example is [std_promise_future.cpp](std_promise_future.cpp).
+Open [the infographic](../images/std_promise_future.svg) for a larger view. The runnable example is [std_promise_future.cpp](../cpp_examples/std_promise_future.cpp).
 
 ## 1. Why do we need these?
 
-In [std_lock.cpp](std_lock.cpp), two threads directly modify shared accounts, so they must lock the accounts before accessing shared balances.
+In [std_lock.cpp](../cpp_examples/std_lock.cpp), two threads directly modify shared accounts, so they must lock the accounts before accessing shared balances.
 
 A different problem is: **How can a worker send a calculated result, or a failure, back to the main thread?** A thread function's return value is not delivered by `std::thread::join()`. Joining waits for the thread to finish; it does not return the function's result.
 

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="440" viewBox="0 0 1000 440" role="img" aria-labelledby="title desc">
+  <title id="title">Counting semaphore admission and binary signaling</title><desc id="desc">Two initial permits admit at most two tasks. Separately a producer writes data and releases a binary semaphore, allowing a consumer to acquire and read.</desc>
+  <rect width="1000" height="440" fill="#f8fafc"/>
+  <g font-family="sans-serif" fill="#18212f">
+    <text x="40" y="50" font-size="28" font-weight="bold">Permits control admission; releases can also publish signals</text>
+    <rect x="40" y="110" width="420" height="180" rx="8" fill="#dbeafe" stroke="#2563eb"/><text x="65" y="150" font-size="23">Counting semaphore</text><text x="65" y="194" font-size="20">Initial permits: 2</text><text x="65" y="236" font-size="20">Acquire before entering</text><text x="65" y="273" font-size="18">Return one permit on scope exit</text>
+    <rect x="540" y="110" width="420" height="180" rx="8" fill="#dcfce7" stroke="#15803d"/><text x="565" y="150" font-size="23">Binary semaphore</text><text x="565" y="194" font-size="20">Initial permits: 0</text><text x="565" y="236" font-size="20">Write 42; release signal</text><text x="565" y="273" font-size="18">Acquire signal; read 42</text>
+    <text x="40" y="347" font-size="20">A release before a waiter arrives leaves an available permit.</text>
+    <text x="40" y="392" font-size="18">Semaphores do not own resources, identify payloads, or provide automatic shutdown.</text>
+  </g>
+</svg>

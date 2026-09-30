@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="420" viewBox="0 0 1000 420" role="img" aria-labelledby="title desc">
+  <title id="title">Thread local independent counters</title><desc id="desc">Main has a count of one, worker one has three, and worker two has five. Main combines returned values to nine after waiting for completion.</desc>
+  <rect width="1000" height="420" fill="#f8fafc"/>
+  <g font-family="sans-serif" fill="#18212f">
+    <text x="40" y="50" font-size="28" font-weight="bold">One variable name, a distinct object in each thread</text>
+    <rect x="40" y="120" width="280" height="160" rx="8" fill="#fef3c7" stroke="#a16207"/><text x="60" y="162" font-size="23">Main thread</text><text x="60" y="209" font-size="22">processed = 1</text><text x="60" y="251" font-size="18">Its own instance</text>
+    <rect x="360" y="120" width="280" height="160" rx="8" fill="#dbeafe" stroke="#2563eb"/><text x="380" y="162" font-size="23">Worker 1</text><text x="380" y="209" font-size="22">processed = 3</text><text x="380" y="251" font-size="18">Return a value copy</text>
+    <rect x="680" y="120" width="280" height="160" rx="8" fill="#dcfce7" stroke="#15803d"/><text x="700" y="162" font-size="23">Worker 2</text><text x="700" y="209" font-size="22">processed = 5</text><text x="700" y="251" font-size="18">Return a value copy</text>
+    <text x="40" y="339" font-size="21">After futures complete: main reduces 1 + 3 + 5 = 9.</text>
+    <text x="40" y="385" font-size="18">Thread pools reuse threads, so thread-local state can survive across tasks.</text>
+  </g>
+</svg>

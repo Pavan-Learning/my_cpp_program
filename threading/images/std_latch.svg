@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="440" viewBox="0 0 1000 440" role="img" aria-labelledby="title desc">
+  <title id="title">Latch countdown opens a one shot gate</title><desc id="desc">Three workers write squares 1, 4, and 9 into separate slots and count down. At zero main's wait finishes and main safely reads the sum fourteen.</desc>
+  <rect width="1000" height="440" fill="#f8fafc"/>
+  <g font-family="sans-serif" fill="#18212f">
+    <text x="40" y="50" font-size="28" font-weight="bold">Three completion events open one permanent gate</text>
+    <rect x="40" y="110" width="280" height="170" rx="8" fill="#dbeafe" stroke="#2563eb"/><text x="60" y="150" font-size="22">Independent workers</text><text x="60" y="194" font-size="20">Write slots: 1, 4, 9</text><text x="60" y="239" font-size="20">Each counts down once</text>
+    <rect x="370" y="110" width="260" height="170" rx="8" fill="#fef3c7" stroke="#a16207"/><text x="395" y="150" font-size="22">Latch count</text><text x="395" y="200" font-size="28">3 - 2 - 1 - 0</text><text x="395" y="247" font-size="18">Zero opens the gate</text>
+    <rect x="680" y="110" width="280" height="170" rx="8" fill="#dcfce7" stroke="#15803d"/><text x="700" y="150" font-size="22">Main</text><text x="700" y="194" font-size="20">wait() returns</text><text x="700" y="239" font-size="20">Read sum: 14</text>
+    <path d="M320 195 H370 M630 195 H680" stroke="#334155" stroke-width="3"/>
+    <text x="40" y="342" font-size="20">Writes before countdown are visible after the gate opens.</text>
+    <text x="40" y="389" font-size="18">No reset. Every required event must be reported, including failure paths.</text>
+  </g>
+</svg>

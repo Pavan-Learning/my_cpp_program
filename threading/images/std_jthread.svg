@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="440" viewBox="0 0 1000 440" role="img" aria-labelledby="title desc">
+  <title id="title">Cooperative jthread cancellation</title><desc id="desc">The owner requests stop. Shared stop state wakes a stop-aware wait, the worker observes cancellation and returns, and the owner joins.</desc>
+  <rect width="1000" height="440" fill="#f8fafc"/>
+  <g font-family="sans-serif" fill="#18212f">
+    <text x="40" y="50" font-size="28" font-weight="bold">Request stop, let the worker finish, then join</text>
+    <rect x="40" y="125" width="275" height="180" rx="8" fill="#dbeafe" stroke="#2563eb"/><text x="60" y="165" font-size="23">Owner</text><text x="60" y="210" font-size="20">request_stop()</text><text x="60" y="253" font-size="20">join()</text>
+    <rect x="365" y="125" width="265" height="180" rx="8" fill="#fef3c7" stroke="#a16207"/><text x="385" y="165" font-size="23">Stop state</text><text x="385" y="210" font-size="20">Sticky request</text><text x="385" y="253" font-size="18">Callbacks run once</text>
+    <rect x="680" y="125" width="280" height="180" rx="8" fill="#dcfce7" stroke="#15803d"/><text x="700" y="165" font-size="23">Worker</text><text x="700" y="210" font-size="20">Stop-aware wait wakes</text><text x="700" y="253" font-size="20">Observe token; return</text>
+    <path d="M315 205 H365 M630 205 H680" stroke="#334155" stroke-width="3"/>
+    <text x="40" y="358" font-size="20">A stop request is not forced termination and is not proof of completion.</text>
+    <text x="40" y="403" font-size="18">A joinable jthread destructor requests stop and joins; the worker must cooperate.</text>
+  </g>
+</svg>

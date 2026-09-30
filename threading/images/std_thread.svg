@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="460" viewBox="0 0 1000 460" role="img" aria-labelledby="title desc">
+  <title id="title">Thread lifetime and ownership</title>
+  <desc id="desc">Main creates a worker, moves its handle to an owner, then joins. The worker publishes a result or exception before main reads it.</desc>
+  <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0 0 L8 3 L0 6" fill="#334155"/></marker></defs>
+  <rect width="1000" height="460" fill="#f8fafc"/>
+  <g font-family="sans-serif" fill="#18212f">
+    <text x="40" y="48" font-size="28" font-weight="bold">std::thread: own, move, join</text>
+    <text x="40" y="83" font-size="18">A handle owns a join obligation, not a promise that work is still running.</text>
+    <rect x="40" y="130" width="280" height="180" rx="8" fill="#dbeafe" stroke="#2563eb"/>
+    <text x="60" y="165" font-size="22" font-weight="bold">Main</text>
+    <text x="60" y="203" font-size="18">Create worker</text>
+    <text x="60" y="238" font-size="18">Move handle to owner</text>
+    <text x="60" y="273" font-size="18">owner.join()</text>
+    <rect x="620" y="130" width="330" height="180" rx="8" fill="#dcfce7" stroke="#15803d"/>
+    <text x="640" y="165" font-size="22" font-weight="bold">Worker execution</text>
+    <text x="640" y="203" font-size="18">Calculate value * value</text>
+    <text x="640" y="238" font-size="18">Store result or exception</text>
+    <text x="640" y="273" font-size="18">Finish</text>
+    <path d="M320 190 H610" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
+    <text x="400" y="176" font-size="18">launch</text>
+    <path d="M620 280 H330" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
+    <text x="354" y="264" font-size="18">completion synchronizes</text>
+    <text x="40" y="368" font-size="21" font-weight="bold">After join: read the result or rethrow the saved exception.</text>
+    <text x="40" y="409" font-size="18">Before join: shared non-atomic output is not safe to inspect.</text>
+  </g>
+</svg>

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="420" viewBox="0 0 1000 420" role="img" aria-labelledby="title desc">
+  <title id="title">Timed mutex acquisition failure</title><desc id="desc">Main holds the mutex until the contender returns from a timed attempt. Main releases the mutex, then a new blocking owner acquires it.</desc>
+  <rect width="1000" height="420" fill="#f8fafc"/>
+  <g font-family="sans-serif" fill="#18212f">
+    <text x="40" y="50" font-size="28" font-weight="bold">A timeout ends an attempt, not the owner's lock</text>
+    <text x="40" y="125" font-size="22">Main</text><rect x="230" y="95" width="500" height="65" rx="8" fill="#dbeafe" stroke="#2563eb"/><text x="250" y="135" font-size="20">Holds mutex while receiving worker result</text>
+    <text x="40" y="230" font-size="22">Contender</text><rect x="310" y="195" width="360" height="65" rx="8" fill="#fef3c7" stroke="#a16207"/><text x="330" y="235" font-size="20">Timed attempt returns false</text>
+    <path d="M730 160 V290 H940" fill="none" stroke="#334155" stroke-width="2"/>
+    <text x="745" y="205" font-size="18">Release</text><text x="745" y="242" font-size="18">Next lock succeeds</text>
+    <text x="40" y="343" font-size="20">Use one steady_clock deadline for one total time budget.</text>
+    <text x="40" y="385" font-size="18">Failure grants no access to protected data. Return time is not a hard deadline.</text>
+  </g>
+</svg>

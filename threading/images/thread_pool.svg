@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="480" viewBox="0 0 1000 480" role="img" aria-labelledby="title desc">
+  <title id="title">Thread pool task ownership and draining shutdown</title><desc id="desc">Submitters put packaged tasks into a mutex-protected queue and keep futures. Two workers claim tasks and execute outside the mutex. Closing rejects new tasks, drains accepted tasks, and joins workers.</desc>
+  <rect width="1000" height="480" fill="#f8fafc"/>
+  <g font-family="sans-serif" fill="#18212f">
+    <text x="40" y="50" font-size="28" font-weight="bold">Fixed workers, queued ownership, explicit shutdown</text>
+    <rect x="40" y="120" width="270" height="170" rx="8" fill="#dbeafe" stroke="#2563eb"/><text x="60" y="160" font-size="23">Caller</text><text x="60" y="205" font-size="19">submit(callable)</text><text x="60" y="247" font-size="19">Keep future&lt;int&gt;</text>
+    <rect x="365" y="120" width="270" height="170" rx="8" fill="#fef3c7" stroke="#a16207"/><text x="385" y="160" font-size="23">Task queue</text><text x="385" y="205" font-size="19">Mutex + predicate wait</text><text x="385" y="247" font-size="19">Move one task out</text>
+    <rect x="690" y="120" width="270" height="170" rx="8" fill="#dcfce7" stroke="#15803d"/><text x="710" y="160" font-size="23">Two workers</text><text x="710" y="205" font-size="19">Execute outside lock</text><text x="710" y="247" font-size="19">Store result / exception</text>
+    <path d="M310 205 H365 M635 205 H690 M825 290 V330 H175 V290" fill="none" stroke="#334155" stroke-width="3"/>
+    <text x="365" y="358" font-size="18">Future delivers the outcome</text>
+    <text x="40" y="409" font-size="20">Close: reject new work, wake all, drain accepted tasks, join every worker.</text>
+    <text x="40" y="449" font-size="18">Do not wait for queued child tasks when every worker can become blocked.</text>
+  </g>
+</svg>

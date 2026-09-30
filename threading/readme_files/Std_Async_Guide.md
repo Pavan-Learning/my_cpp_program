@@ -2,11 +2,11 @@
 
 **Give the library a function. Receive its return value or exception through a future.**
 
-![A visual guide to C++ std::async](std_async.svg)
+![A visual guide to C++ std::async](../images/std_async.svg)
 
-Open [the infographic](std_async.svg) for a larger view.
+Open [the infographic](../images/std_async.svg) for a larger view.
 
-This lesson continues [std::promise and std::future](Std_Promise_Future_Guide.md), using the same bank-transfer calculation. The runnable example is [std_async.cpp](std_async.cpp).
+This lesson continues [std::promise and std::future](Std_Promise_Future_Guide.md), using the same bank-transfer calculation. The runnable example is [std_async.cpp](../cpp_examples/std_async.cpp).
 
 ## 1. Why do we need std::async?
 
