@@ -1,0 +1,132 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1550" viewBox="0 0 1200 1550" role="img" aria-labelledby="title description">
+  <title id="title">C++ std::promise and std::future</title>
+  <desc id="description">A visual reference showing producer and consumer endpoints, shared state, value and exception delivery, waiting, one-shot rules, a bank transfer example, and related C++ tools.</desc>
+  <defs>
+    <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
+      <path d="M24 0H0V24" fill="none" stroke="#e8edf0" stroke-width="0.6"/>
+    </pattern>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10Z" fill="#2563a6"/>
+    </marker>
+    <style>
+      text { font-family: 'DejaVu Sans', sans-serif; fill: #202e38; letter-spacing: 0; }
+      .title { font-size: 43px; font-weight: 700; }
+      .subtitle { font-size: 20px; }
+      .heading { font-size: 22px; font-weight: 700; }
+      .body { font-size: 18px; }
+      .small { font-size: 16px; }
+      .code { font-family: 'DejaVu Sans Mono', monospace; font-size: 16px; }
+      .bold { font-weight: 700; }
+      .blue { fill: #175c9e; }
+      .green { fill: #16704b; }
+      .red { fill: #af3040; }
+      .panel { fill: #fff; stroke: #b9c9d3; stroke-width: 1.5; }
+      .flow { fill: none; stroke: #2563a6; stroke-width: 2.5; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect width="1200" height="1550" fill="#f7fafb"/>
+  <rect width="1200" height="1550" fill="url(#grid)"/>
+
+  <text x="32" y="62" class="title">C++ <tspan class="blue">std::promise</tspan> + <tspan class="green">std::future</tspan></text>
+  <text x="34" y="96" class="subtitle">One producer. One shared state. One result retrieved later.</text>
+  <text x="34" y="124" class="small">C++11 and later | Runnable companion: std_promise_future.cpp | Example uses C++17</text>
+
+  <rect x="28" y="148" width="1144" height="194" rx="8" class="panel"/>
+  <text x="48" y="180" class="heading">1. The mental model</text>
+  <rect x="56" y="202" width="270" height="82" rx="6" fill="#eaf2fc" stroke="#90b5da"/>
+  <text x="76" y="232" class="heading blue">PRODUCER</text>
+  <text x="76" y="261" class="code">std::promise&lt;T&gt;</text>
+  <path d="M330 244H446" class="flow"/>
+  <text x="340" y="225" class="small">publishes</text>
+  <rect x="454" y="202" width="292" height="82" rx="6" fill="#fff7d9" stroke="#d7bc5d"/>
+  <text x="474" y="232" class="heading">SHARED STATE</text>
+  <text x="474" y="261" class="body">pending / value / exception</text>
+  <path d="M750 244H866" class="flow"/>
+  <text x="762" y="225" class="small">delivers</text>
+  <rect x="874" y="202" width="270" height="82" rx="6" fill="#e9f6ed" stroke="#87b69a"/>
+  <text x="894" y="232" class="heading green">CONSUMER</text>
+  <text x="894" y="261" class="code">std::future&lt;T&gt;</text>
+  <text x="56" y="316" class="body bold">These objects communicate a result. They do not start a thread.</text>
+
+  <rect x="28" y="358" width="558" height="238" rx="8" class="panel"/>
+  <text x="48" y="392" class="heading blue">2. Connect, move, publish, receive</text>
+  <text x="48" y="425" class="code">std::promise&lt;int&gt; producer;</text>
+  <text x="48" y="453" class="code">auto receiver = producer.get_future();</text>
+  <text x="48" y="486" class="body">Move producer into your worker thread.</text>
+  <text x="48" y="519" class="code green">producer.set_value(42);  // worker</text>
+  <text x="48" y="548" class="code blue">int answer = receiver.get(); // main</text>
+  <text x="48" y="579" class="small">get() waits only if the result is not already ready.</text>
+
+  <rect x="602" y="358" width="570" height="238" rx="8" class="panel"/>
+  <text x="622" y="392" class="heading green">3. A result is not a thread lifetime</text>
+  <text x="622" y="428" class="body">Worker: calculate → set_value() → finish</text>
+  <text x="622" y="466" class="body">Main: get() → use answer → worker.join()</text>
+  <path d="M661 485H1107" stroke="#91b5cf" stroke-width="2"/>
+  <text x="622" y="520" class="body bold">get() receives the result.</text>
+  <text x="622" y="550" class="body bold">join() waits for thread completion.</text>
+  <text x="622" y="579" class="small">A ready result can precede the worker's final instruction.</text>
+
+  <rect x="28" y="612" width="558" height="248" rx="8" class="panel"/>
+  <text x="48" y="646" class="heading blue">4. Wait versus get</text>
+  <text x="48" y="681" class="code bold">valid()</text>
+  <text x="218" y="681" class="body">Has a state, not "is ready".</text>
+  <text x="48" y="716" class="code bold">wait()</text>
+  <text x="218" y="716" class="body">Wait; keep the result.</text>
+  <text x="48" y="751" class="code bold">wait_for(...)</text>
+  <text x="218" y="751" class="body">Timed wait; return status.</text>
+  <text x="48" y="786" class="code bold">get()</text>
+  <text x="218" y="786" class="body">Wait; retrieve once.</text>
+  <text x="48" y="828" class="small green">After ordinary future.get(): valid() == false.</text>
+
+  <rect x="602" y="612" width="570" height="248" rx="8" class="panel"/>
+  <text x="622" y="646" class="heading">5. What does wait_for() tell you?</text>
+  <text x="622" y="684" class="code green">ready</text>
+  <text x="758" y="684" class="body">Value OR exception available.</text>
+  <text x="622" y="723" class="code blue">timeout</text>
+  <text x="758" y="723" class="body">Still pending; not canceled.</text>
+  <text x="622" y="762" class="code">deferred</text>
+  <text x="758" y="762" class="body">Deferred async work, not started.</text>
+  <text x="622" y="801" class="small">Promise-backed futures do not return deferred.</text>
+  <text x="622" y="830" class="small">Timed waits do not run deferred async work.</text>
+
+  <rect x="28" y="876" width="558" height="222" rx="8" class="panel"/>
+  <text x="48" y="910" class="heading red">6. Failure follows the same path</text>
+  <text x="48" y="945" class="code">catch (...) {</text>
+  <text x="48" y="973" class="code">  producer.set_exception(</text>
+  <text x="48" y="1001" class="code">      std::current_exception());</text>
+  <text x="48" y="1029" class="code">}</text>
+  <text x="48" y="1070" class="body">Consumer's get() rethrows; wait() does not.</text>
+
+  <rect x="602" y="876" width="570" height="222" rx="8" class="panel"/>
+  <text x="622" y="910" class="heading red">7. One-shot rules</text>
+  <text x="622" y="948" class="body">Retrieve the promise's future once.</text>
+  <text x="622" y="982" class="body">Publish one value OR one exception.</text>
+  <text x="622" y="1016" class="body">Consume an ordinary future with get() once.</text>
+  <text x="622" y="1050" class="body">Pending promise destroyed?</text>
+  <text x="622" y="1078" class="code red">get() throws broken_promise.</text>
+
+  <rect x="28" y="1114" width="1144" height="188" rx="8" class="panel"/>
+  <text x="48" y="1148" class="heading green">8. Bank transfer: calculate in worker, apply in main</text>
+  <rect x="48" y="1170" width="286" height="76" rx="6" fill="#eaf2fc"/>
+  <text x="64" y="1200" class="body bold">Pavan: 50000 → 49500</text>
+  <text x="64" y="1230" class="body">Sagar: 60000 → 60500</text>
+  <path d="M340 1208H456" class="flow"/>
+  <text x="357" y="1188" class="small">send 500</text>
+  <text x="478" y="1198" class="body">Worker reads copies and publishes TransferResult.</text>
+  <text x="478" y="1230" class="body">Only main updates the original account balances.</text>
+  <text x="48" y="1277" class="body red">A later request for 100000 fails: get() throws, balances stay unchanged.</text>
+
+  <rect x="28" y="1318" width="558" height="170" rx="8" class="panel"/>
+  <text x="48" y="1352" class="heading">9. Choose the right tool</text>
+  <text x="48" y="1388" class="body">Many readers, one result → shared_future</text>
+  <text x="48" y="1421" class="body">Function + future → async / packaged_task</text>
+  <text x="48" y="1454" class="body">Many messages → synchronized queue</text>
+
+  <rect x="602" y="1318" width="570" height="170" rx="8" fill="#fff7d9" stroke="#d7bc5d"/>
+  <text x="622" y="1352" class="heading">10. Remember the boundaries</text>
+  <text x="622" y="1388" class="body">Not a mutex for other shared data.</text>
+  <text x="622" y="1421" class="body">Not automatic cancellation or deadlock safety.</text>
+  <text x="622" y="1454" class="body">Not a replacement for joining your thread.</text>
+
+  <text x="32" y="1525" class="body bold blue">Promise = provide once. Future = fetch once. Shared state = connection. Join = lifetime.</text>
+</svg>
